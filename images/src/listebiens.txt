@@ -1,0 +1,14 @@
+Utilisateur-> Interface: Montre-moi la liste des biens
+Note right of Interface: J’ai besoin: \ndes biens. 
+Interface->Serveur: Donne-moi la liste des biens 
+Serveur->Interface: Voici la liste des biens
+Note right of Interface: Comment j'affiche les biens?
+Interface->Serveur: J'affiche quoi? 
+Serveur->Interface: Voici la liste de colonnes à afficher
+Note right of Interface:Quelles sont les colonnes\n filtrables/ sortables?
+Interface->Serveur: Donne-moi la description des  biens?
+Serveur->Interface: Voici a description des colonnes.
+Interface->Utilisateur: Voici la liste des biens.
+ 
+ 
+
