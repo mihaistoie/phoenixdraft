@@ -9,6 +9,4 @@ Note right of Interface:Quelles sont les colonnes\n filtrables/ sortables?
 Interface->Serveur: Donne-moi la description des  biens?
 Serveur->Interface: Voici a description des colonnes.
 Interface->Utilisateur: Voici la liste des biens.
- 
- 
 
