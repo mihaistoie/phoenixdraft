@@ -1,0 +1,28 @@
+{
+  "name": "phoenix",
+  "version": "0.0.1",
+  "license": "???",
+  "description": "Phoenix Web Toolkit",
+  "author": {
+    "name": "Mihai STOIE"
+  },
+  "keywords": [
+    "Phoenix"
+  ],
+  "repository": {
+  },
+  "bugs": {
+  },
+  "devDependencies": {
+    "grunt": "~0.4.2",
+    "grunt-bump": "0.0.13",
+    "grunt-contrib-clean": "~0.5.0",
+    "grunt-contrib-copy": "~0.4.1",
+    "grunt-contrib-jshint": "~0.7.2",
+    "grunt-contrib-nodeunit": "~0.2.0",
+    "grunt-contrib-uglify": "~0.5.1",
+    "grunt-jsvalidate": "~0.2.2",
+	"grunt-contrib-concat": "~0.5.0",
+    "jshint-stylish": "~0.1.4"
+  }
+}
