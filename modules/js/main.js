@@ -6,6 +6,6 @@ $(function() {
 			{"$items": [{"$items": []}, {"$items": []}]}
 		]
 	};
-	$('#yyy').append(Phoenix.renders.renderLayout(layout, null, null, {design: true}));
+	$('#yyy').append(Phoenix.renders.layout(layout, null, null, {design: true}));
 });
 

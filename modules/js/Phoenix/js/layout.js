@@ -112,28 +112,31 @@
 			html.push('"');
 		}
 	},
-	blockBefore = function (html, layout, schema, model, locale, utils, design) {
+	_blockBefore = function (html, layout, schema, model, locale, utils, design) {
 		html.push('<div');
+		if (design) html.push(' draggable="true"') 
 		_addLayoutCss(html, layout, {design: design, step: 1});
 		html.push('>');
 		if (layout.$title) 
 			html.push('<p>' + layout.$title + '</p>');
 	},
-	blockAfter = function(html, layout, schema, model, locale, utils, design) {
+	_blockAfter = function(html, layout, schema, model, locale, utils, design) {
 		html.push('</div>');
 	},
-	htmlBefore = function (html, layout, schema, model, locale, utils, design) {
+	_htmlBefore = function (html, layout, schema, model, locale, utils, design) {
 		html.push('<div');
+		if (design) html.push(' draggable="true"') 
 		_addLayoutCss(html, layout, {design: design, step: 1});
 		html.push('>');
 		if (layout.$html) 
 			html.push(html);
 	},
-	htmlAfter = function(html, layout, schema, model, locale, utils, design) {
+	_htmlAfter = function(html, layout, schema, model, locale, utils, design) {
 		html.push('</div>');
 	},
-	rowBefore = function (html, layout, schema, model, locale, utils, design) {
+	_rowBefore = function (html, layout, schema, model, locale, utils, design) {
 		html.push('<div');
+		if (design) html.push(' draggable="true"') 
 		_addLayoutCss(html, layout, {design: design, step: 1});
 		html.push('>');
 		html.push('<div');
@@ -141,42 +144,43 @@
 		html.push('>');
 		_checkRowChilds(layout);
 	},
-	rowAfter = function (html, layout, schema, model, locale, utils, design) {
+	_rowAfter = function (html, layout, schema, model, locale, utils, design) {
 		html.push('</div>');
 		html.push('</div>');
 	},
-	columnBefore =  function (html, layout, schema, model, locale, utils, design) {
+	_columnBefore =  function (html, layout, schema, model, locale, utils, design) {
 		html.push('<div');
 		_addLayoutCss(html, layout, {design: design, step: 1});
 		html.push('>');
 		html.push('<div');
+		if (design) html.push(' draggable="true"') 
 		_addLayoutCss(html, layout, {design: design, step: 2});
 		html.push('>');
 	},
-	columnAfter = function (html, layout, schema, model, locale, utils, design) {
+	_columnAfter = function (html, layout, schema, model, locale, utils, design) {
 		html.push('</div>');
 		html.push('</div>');
-	}, renderLayout = function (layoutMap, layout, schema, model, html, locale, utils, options) {
+	}, _renderLayout = function (layoutMap, layout, schema, model, html, locale, utils, options) {
 		var onlyFields = false;
 		if (layout) {
 			_checkLayout(layout, utils);
 			layoutMap[layout.id] = layout;
 			onlyFields = _canAddFields(layout);
-			var rb = blockBefore;
-			var ra = blockAfter;
+			var rb = _blockBefore;
+			var ra = _blockAfter;
 			var addChilds = true;
 			switch (layout.$type) {
 				case "row":
-					rb = rowBefore;
-					ra = rowAfter;
+					rb = _rowBefore;
+					ra = _rowAfter;
 					break;
 				case "column":
-					rb = columnBefore;
-					ra = columnAfter;
+					rb = _columnBefore;
+					ra = _columnAfter;
 					break;
 				case "html":
-					rb = htmlBefore;
-					ra = htmlAfter;
+					rb = _htmlBefore;
+					ra = _htmlAfter;
 					addChilds = false;
 					break;
 			}
@@ -185,17 +189,17 @@
 			} else {
 				layout.$items.forEach(function(item){
 					item.$parent = layout;
-					renderLayout(layoutMap, item, schema, model, html, locale, utils, options);
+					_renderLayout(layoutMap, item, schema, model, html, locale, utils, options);
 				});
 			}
 			ra(html, layout, schema, model, locale, utils, options.design);
 		}
 	};
 	$l.renders = $l.renders || {};
-	$l.renders.renderLayout = function(layout, schema, model, options) {
+	$l.renders.layout = function(layout, schema, model, options) {
 		layout.map = layout.map || {};
 		var html = [];
-		renderLayout(layout.map, layout, schema, model, html, $l.locale, $l.utils, options);
+		_renderLayout(layout.map, layout, schema, model, html, $l.locale, $l.utils, options);
 		return html.join('');
 	}
 	return $l;
