@@ -3,9 +3,12 @@ $(function() {
 		"$items": [
 			{"$items": [{"$items": []}, {"$items": [{"$type":"row", "$items": [{"$items": []}, {"$items": []}]}]}]},
 			{"$type":"row", "$items": [{"$items": []}, {"$items": []}, {"$items": []}]},
-			{"$items": [{"$items": []}, {"$items": []}]}
+			{"$items": []}, 
+			{"$items": []}
+			
 		]
 	};
-	$('#yyy').append(Phoenix.renders.layout(layout, null, null, {design: true}));
+	var cl = new Phoenix.ui.Layout(layout);
+	cl.render($('#yyy'));
 });
 

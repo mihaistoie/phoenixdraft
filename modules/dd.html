@@ -6,12 +6,17 @@
 <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
 
 <script src="./js/zepto.js"></script>
+
 <script src="./js/Phoenix/js/core.js"></script>
 <script src="./js/Phoenix/js/layout.js"></script>
+<script src="./js/Phoenix/js/layout.widget.js"></script>
+<script src="./js/Phoenix/js/layout.events.js"></script>
 <script src="./js/main.js"></script>
 
 <style>
 
+
+/* layouts */
 .design {
 	position:relative;
 	margin: 10px;
@@ -26,14 +31,48 @@
 
 .design.col {
 	min-height :100px;
-	
 } 
+
+.design.selected {
+	background-color: #EEE;
+}
+
+.bs-none { 
+	display: none;
+}
+.drop-target, .drop-target.selected {
+	background-color: yellow;
+	border-style: dashed;
+}
+.bs-drag-image {
+	position: absolute;
+	top: 0px;
+	z-index: 1000;
+	right: 0;
+	height: 30px;
+	width: 100px;
+	background-color: red;
+}
+
+div.row.design-table {
+	display: table;
+	width: 100%;
+	margin: 0px;
+	table-layout: fixed;
+}
+
+div.row.design-table > div {
+	min-height: 100px;
+	display: table-cell;
+	vertical-align: top;
+	float: none !important;
+}
+
 
 </style>
 </head>
 <body>
 <div id = "yyy" style="max-width: 1200px"></div>
-<button onclick="mmm();">Test</button>
 </body>
 
 </html>
