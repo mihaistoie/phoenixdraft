@@ -1,0 +1,44 @@
+/* Mode design */
+.design {
+	position:relative;
+	margin: 10px;
+	min-height: 40px;
+	border: 2px solid #ddd;
+}
+div.design.panel > div.panel-body {
+	min-height: 40px;
+}
+
+.design.col {
+	min-height :100px;
+} 
+.design.selected {
+	background-color: #EEE;
+}
+.drop-target, .drop-target.selected {
+	background-color: yellow;
+	border-style: dashed;
+}
+.bs-drag-image {
+	position: absolute;
+	top: 0px;
+	z-index: 1000;
+	right: 0px;
+	height: 30px;
+	width: 100px;
+	background-color: red;
+}
+
+div.row.design-table {
+	display: table;
+	width: 100%;
+	margin: 0px;
+	table-layout: fixed;
+}
+
+div.row.design-table > div {
+	min-height: 100px;
+	display: table-cell;
+	vertical-align: top;
+	float: none !important;
+}
