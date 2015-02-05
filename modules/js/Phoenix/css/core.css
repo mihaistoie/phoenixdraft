@@ -7,6 +7,13 @@
 	padding-left: 0px;
 	padding-right: 0px;
 }
+.no-start-padding {
+	padding-left: 0px;
+}
+.no-end-padding {
+	padding-right: 0px;
+}
+
 
 .bs-none { 
 	display: none;

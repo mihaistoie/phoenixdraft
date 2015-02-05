@@ -3,7 +3,7 @@
 	position:relative;
 	margin: 10px;
 	min-height: 40px;
-	border: 2px solid #ddd;
+	border: 1px solid #aaa;
 }
 div.design.panel > div.panel-body {
 	min-height: 40px;
@@ -41,4 +41,21 @@ div.row.design-table > div {
 	display: table-cell;
 	vertical-align: top;
 	float: none !important;
+}
+
+.bs-rt-button {
+	position: absolute;
+	cursor: default;
+	font-size: 22px;
+	line-height: 22px;
+	right: 0px;
+	top: 0px;
+	width:  22px;
+	height: 22px;
+	margin-top: -11px; 
+	margin-right: -11px; 
+	background-color: white;
+	border-radius: 11px;
+	color:red;
+
 }

@@ -17,7 +17,8 @@ var Phoenix = (function() {
             return _dragData;
         },
         _emitEvent = function(eventName, data) {
-            var l = _eventListeners[eventName];
+        	var evname = 'on' + eventName;
+            var l = _eventListeners[evname];
             if (l) l.forEach(function(item) {
                 item.handler.bind(item.listener)();
             });
@@ -41,7 +42,6 @@ var Phoenix = (function() {
                     }
                 }
             }
-
             if (eventName) {
                 _rmvlistener(_eventListeners[eventName]);
             } else {

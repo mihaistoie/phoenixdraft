@@ -1,6 +1,8 @@
 ﻿'use strict';
 (function($l) {
+    var _locale = $l.locale.layouts;
     var _checkLayout = function(layout, parent, utils, map) {
+    		console.log(layout);
             if (!layout.$id)
                 layout.$id = utils.allocUuid();
             if (parent)
@@ -10,12 +12,16 @@
             layout.$type = layout.$type || "block";
             layout.$items = layout.$items || [];
             if (map) map[layout.$id] = layout;
+            if (layout.$type == "panel" && !layout.$title) {
+                layout.$title = _locale.PanelTitle;
+            } else if (layout.$type == "html" && !layout.$html) {
+            	layout.$html = _locale.Html;
+            }
+
         },
         _checkRowChilds = function(layout) {
             if (!layout.$items.length) {
-                layout.$items.push({
-                    $items: []
-                });
+                layout.$items.push({});
             }
             var setCol = false;
             layout.$items.forEach(function(item) {
@@ -41,12 +47,27 @@
             }
             return true;
         },
-        _canAddFields = function(layout) {
+        _needParentPadding = function(layout) {
+        	return (layout.$type == "panel");
+        },
+        _noPadding = function(layout) {
+        	var res = true;
+        	if (!layout.$items.length)  return res;
+        	layout.$items.forEach(function(item){
+        		if (res) {
+       				res = !_needParentPadding(item);
+        		}
+        	});
+        	return res;
+
+        },
+		_canAddFields = function(layout) {
+			if (layout.$type && !layout.$items) layout.$items = [];
             if ((layout.$type === "row") || (layout.$type === "accordion") || (layout.$type === "html"))
                 return false;
             if (layout.$items.length > 0) {
                 var l = layout.$items[0];
-                if (l.$items || (l.$type == "html"))
+                if (l.$type || layout.$items )
                     return false
             }
             return true;
@@ -68,11 +89,14 @@
                 case "block":
                     css.push("container-fluid");
                     if (_canAddLayouts(layout)) {
-                        css.push("no-x-padding");
-                        css.push("drop-layouts-zone");
+                    	if (options.design || _noPadding(layout))
+                        	css.push("no-x-padding");
+                        if (options.design)
+                            css.push("drop-layouts-zone");
                     }
                     if (_canAddFields(layout)) {
-                        css.push("drop-fields-zone");
+                        if (options.design)
+                            css.push("drop-fields-zone");
                     }
                     if (options.design) {
                         css.push("design");
@@ -97,6 +121,7 @@
                         css.push("container-fluid");
                         if (options.design) {
                             css.push("design");
+                            css.push("no-x-padding");
                             if (layout.selected)
                                 css.push("selected");
 
@@ -120,12 +145,17 @@
                     } else if (options.step == 2) {
                         css.push("panel-body");
                         if (_canAddLayouts(layout)) {
-                            css.push("no-x-padding");
-                            css.push("no-y-padding");
-                            css.push("drop-layouts-zone");
+                        	if (options.design || _noPadding(layout)) {
+                        		css.push("no-x-padding");
+                            	css.push("no-y-padding");
+                            }
+                            
+                            if (options.design)
+                                css.push("drop-layouts-zone");
                         }
                         if (_canAddFields(layout)) {
-                            css.push("drop-fields-zone");
+                            if (options.design)
+                                css.push("drop-fields-zone");
                         }
                         _addStdThemes(layout, css);
 
@@ -138,15 +168,23 @@
                             css.push("col-xs-" + layout.$colSize);
                         else
                             css.push("col-" + (layout.$colType || "sm") + "-" + layout.$colSize);
-                        css.push("no-x-padding");
-                        css.push("drop-layouts-zone");
-                    } else if (options.step == 2) {
-                        if (_canAddLayouts(layout)) {
-                            css.push("no-x-padding");
+                    	css.push("no-x-padding");
+                        if (options.design)
                             css.push("drop-layouts-zone");
+                    } else if (options.step == 2) {
+                    	css.push("container-fluid");
+                        if (_canAddLayouts(layout)) {
+	                    	if (options.design || _noPadding(layout)) {
+	                    		css.push("no-x-padding");
+	                        }
+                            if (options.design)
+                                css.push("drop-layouts-zone");
                         }
-                        if (_canAddFields(layout))
-                            css.push("drop-fields-zone");
+                        if (_canAddFields(layout)) {
+                            if (options.design)
+                                css.push("drop-fields-zone");
+                        }
+
                         if (options.design) {
                             css.push("design col");
                             if (layout.selected)
@@ -217,10 +255,10 @@
             html.push('>');
             html.push('<div class="panel-heading"');
             html.push('>');
-            html.push('<h3 class="panel-title"');
+            html.push('<h4 class="panel-title"');
             html.push('>');
             html.push(layout.$title);
-            html.push('</h3></div>');
+            html.push('</h4></div>');
             layout.$idStep2 = layout.$id + "_s2";
             layout.$idDesign = layout.$idStep2;
             html.push('<div');
@@ -234,7 +272,13 @@
 
         },
         _panelAfter = function(html, layout, parent, schema, model, locale, utils, design) {
-            html.push('</div></div>');
+            html.push('</div>');
+            if (layout.$footer) {
+            	html.push('<div class="panel-footer">');
+      			html.push(layout.$footer);
+      			html.push('</div>');
+            }
+            html.push('</div>');
         },
         _blockBefore = function(html, layout, parent, schema, model, locale, utils, design) {
             html.push('<div');
@@ -263,7 +307,7 @@
             _addDataStep(html, 1, design);
             html.push('>');
             if (layout.$html)
-                html.push(html);
+            	html.push(layout.$html);
         },
         _htmlAfter = function(html, layout, schema, model, locale, utils, design) {
             html.push('</div>');
@@ -376,13 +420,42 @@
                     ra(html, item, parent, schema, model, locale, utils, options.design);
                 }
             });
-        };
+        },
+        _createAuthoringMode = function(design) {
+            var html = [
+                '<div class="checkbox">',
+                '    <label>',
+                '      <input type="checkbox"' + (design ? ' checked="true"' : '') + '>',
+                _locale.AuthoringMode,
+                '    </label>',
+                '</div>'
+            ];
+            return html.join('');
+
+        },
+        _canDropChild = function(child, parent, parentLevel) {
+        	parentLevel = parseInt(parentLevel || '1', 10);
+            if (!parent || !child) return false;
+            if (parent.$type == 'column') {
+                if (parentLevel == '1') {
+                    return (parent == child)
+                }
+            }
+            if (child.$type == 'column') return false;
+            console.log('_canDropChild');
+            return true;
+        },
+        _canSelectLayout = function(layout, level) {
+        	console.log(layout.$type + "  " +level) ;
+        	if (layout.$type == "column" && level == 1) return false;
+        	return true;
+        }
 
     $l.layout = $l.layout || {};
     var _l = $l.layout;
     _l.utils = _l.utils || {};
-    _l.utils.check = function(layout, map) {
-        _enumLayouts(layout, null, function(item, parent, before) {
+    _l.utils.check = function(layout, map, parentLayout) {
+        _enumLayouts(layout, parentLayout, function(item, parent, before) {
             if (before) {
                 _checkLayout(item, parent, $l.utils, map);
             }
@@ -398,11 +471,33 @@
                 delete item.$idStep2;
                 if (item.$type == 'column')
                     delete item.$type;
+                else if (layout.$type == "panel") {
+                    if (layout.$title == _locale.PanelTitle)
+                        delete layout.$title; 
+                } else if (layout.$type == "html") {
+                    if (layout.$html == _locale.Html)
+                        delete layout.$html; 
+                }
             }
         });
     };
-
+    _l.utils.afterRemoveChild = function(layout, map) {
+        if (layout.$type == "row") {
+            layout.$items.forEach(function(item) {
+                item.$type = "column";
+                delete item.$colSize;
+            });
+            var docheck = !layout.$items.length;
+            _checkRowChilds(layout);
+            layout.$items.forEach(function(item) {
+                _l.utils.check(item, map, layout);
+            });
+        }
+    };
+    _l.utils.canDropChild = _canDropChild;
+    _l.utils.canSelect = _canSelectLayout; 
     _l.setClassName = _setLayoutCss;
+    _l.authModeHtml = _createAuthoringMode;
     _l.toHtml = function(layout, schema, model, options) {
         var html = [];
         _renderLayout(layout, schema, model, html, $l.locale, $l.utils, options);

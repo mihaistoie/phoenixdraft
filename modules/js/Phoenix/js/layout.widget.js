@@ -1,17 +1,31 @@
 'use strict';
 (function($l, $) {
     var l = $l.layout;
-    var _event2Id = function(event, root) {
+    var _event2Id = function(event, root, layout) {
             var t = $(event.target),
-                id = null;
-            while (t) {
+                id = null, level, ll;
+            while (t &&  t.get(0)) {
                 var id = t.attr('data-layout');
-                if (id)
-                    break;
-                t = (t == root) ? null : t.parent();
+                if (id) {
+                	level = parseInt(t.attr('data-level') || '1',10);
+                	ll = layout.getLayoutById(id);
+                	if (!ll || !l.utils.canSelect(ll, level)) id = null
+                	if (id) 
+                    	break;
+                }
+                t = (t.get(0) == root.get(0)) ? null : t.parent();
             }
             return id;
         },
+		_isRemoveButton = function(event, root) {
+            var t = $(event.target);
+            while (t && t.get(0)) {
+                if (t.attr('data-remove'))
+                	return true;
+                t = (t.get(0) == root.get(0)) ? null : t.parent();
+            }
+            return false;
+        },        
         _createTopList = function($p, exclude, placeHolder) {
             var res = [];
             var childs = $p.children();
@@ -20,7 +34,7 @@
                 var o = $(c).offset();
                 res.push({
                     top: o.top + (o.height >> 1),
-                    ignore: (c == exclude),
+                    ignore: (c == exclude) || c.hasAttribute('data-remove'),
                     placeHolder: (c == placeHolder)
                 });
             }
@@ -133,6 +147,35 @@
             else
                 $e.removeClass('selected');
         },
+        _notifySelectedChanged = function(layout) {
+            $l.utils.emit("SelectedChanged", {
+                type: "layout",
+                data: layout
+            });
+        },
+        _onSelectedChanged = function($element, layout, notify) {
+            if (layout) {
+                var $p = _findElement($element, layout.$idDrag);
+                if ($element.get(0) != $p.get(0)) {
+                    if (layout.selected) {
+                        var $r = $('<div class="bs-rt-button" data-remove="true"><span class="glyphicon glyphicon-remove-sign"></span></div>')
+                        var c = $p.children();
+                        if (c.length)
+                            $(c.get(0)).before($r);
+                        else
+                            $p.append($r);
+                    } else {
+                        $p.children('div[data-remove="true"]').remove();
+                    }
+                }
+            }
+            if (notify) {
+                $l.utils.emit("SelectedChanged", {
+                    type: "layout",
+                    data: layout
+                });
+            }
+        },
         _startDrag = function($element, layout) {
             if (!$element) return;
             var $e = _findElement($element, layout.$idDrag);
@@ -141,24 +184,23 @@
             else
                 $e.removeClass('selected');
         },
-        _acceptLayoutAsChild = function(parent, child, parentLevel) {
-            if (!parent || !child) return false;
-            if (parent.$type == 'column') {
-                if (parentLevel == '1') {
-                    return (parent == child)
-                }
-            }
-            if (child.$type == 'column') return false;
-
-            return true;
-        },
         _removeEvents = function($element, layout, design) {
             if (design) {
                 $element.off('click');
-                $element.find('div[draggable="true"]').off('dragstart dragend');
+                $element.find('div[draggable="true"]').off('dragstart').add($element).off('dragend');
                 $element.find('div[draggable="true"]').off('dragstart');
                 $element.find('.drop-layouts-zone').add($element).off('dragover dragenter drop');
             }
+        },
+        _removeDesignModeEvents = function($check) {
+        		$check.find('input[type="checkbox"]').off('click');
+
+        },
+        _setDesignModeEvents = function($check, layout, design) {
+        	$check.find('input[type="checkbox"]').on('click', function(event) {
+        		layout.setDesignMode(this.checked);
+        	});
+
         },
         _updateCss = function(item, $element, layout, design) {
             var $l1 = _findElement($element, item.$id);
@@ -175,7 +217,7 @@
         },
         _setEvents = function($element, layout, design) {
             if (design) {
-                var dragging, dragImage, startDrag, placeHolder, topList, success = false;;
+                var dragging, dragImage, startDrag, placeHolder, topList;
                 var _cleanUp = function() {
                         if (dragging) {
                             dragging.removeClass('bs-none');
@@ -190,10 +232,11 @@
                             dragImage = null;
                         }
                         topList = null;
+                        startDrag = false;
                         $l.utils.setDragData(null);
                     },
                     _performDrop = function(td) {
-                        console.log("perform drop");
+                        console.log("Drop event");
                         if (td && td.isLayout) {
                             if (td.layout == td.dst) return;
                             var ni, oi, op,
@@ -213,7 +256,6 @@
                                 oi = op ? op.$items.indexOf(moved) : -1;
                                 ni = td.indexInParent;
                             }
-                            console.log(oi);
                             moved.$parentId = np.$id;
                             if (oi >= 0) op.$items.splice(oi, 1);
                             np.$items.splice(ni, 0, moved);
@@ -237,16 +279,18 @@
                                 });
                                 return;
                             } else {
-                                layout.check(moved);
+                                layout.check(moved, np);
                             }
                             layout.render(null, true);
                         }
                     };
                 $element.on('click', function(event) {
-                    var id = _event2Id(event, $element);
+                    var id = _event2Id(event, $element, layout);
+                    if (_isRemoveButton(event, $element)) {
+                    	layout.removeLayout(id);	
+                    	return;	
+                    }
                     layout.select(id);
-                    _cleanUp();
-
                 });
                 $element.find('div[draggable="true"]').on('dragstart', function(event) {
                     event.stopPropagation();
@@ -270,28 +314,22 @@
                         dragging = _findElement($element, l.$idDrag);
                         startDrag = true;
                     }
-                }).on('dragend', function(event) {
+                }).add($element).on('dragend', function(event) {
                     //end of the drag
                     console.log("dragend");
                     event.preventDefault();
                     event.stopPropagation();
-                    if (success) {
-                        success = false;
-                        var td = $l.utils.getDragData();
-                        _cleanUp();
-                        _performDrop(td);
-                    } else
-                        _cleanUp();
+                    _cleanUp();
                     return false;
-
                 });
                 $element.find('.drop-layouts-zone').add($element).on('dragover dragenter drop', function(event) {
                     var $t = $(this),
                         td;
                     var e = event.originalEvent ? event.originalEvent : event;
                     event.stopPropagation();
-                    event.preventDefault();
                     if (event.type == 'drop') {
+                        console.log("drop");
+                        event.preventDefault();
                         var dst = layout.getLayoutById($t.attr('data-layout'));
                         var dstLevel = $t.attr('data-level');
                         if (dst) {
@@ -300,20 +338,13 @@
                             td.dstLevel = dstLevel;
                             td.indexInParent = _indexInParent($t.get(0), placeHolder.get(0), dragging ? dragging.get(0) : null);
                             $l.utils.setDragData(td);
-                            if (td.isNew)
-                                setTimeout(function() {
-                                    _performDrop(td);
-                                }, 100);
-                            else {
-                                success = true;
-                                return false;
-                            }
+                            _cleanUp();
+                            _performDrop(td);
+                            return false;
                         }
                         _cleanUp();
-                        event.preventDefault();
                         return false;
                     }
-
                     var dt = e.dataTransfer;
                     var t = dt.getData('Text');
                     td = $l.utils.getDragData();
@@ -341,7 +372,6 @@
                             return false;
                         }
                     }
-
                     if (td.isLayout) {
                         if (event.type == 'dragenter') topList = null;
                         if (dragging && (dragging.get(0) == $t.get(0))) {
@@ -350,7 +380,8 @@
                         }
                         var p = layout.getLayoutById($t.attr('data-layout'));
                         var level = $t.attr('data-level');
-                        if (!_acceptLayoutAsChild(p, td.layout, $t.attr('data-level'))) {
+
+                        if (!l.utils.canDropChild(td.layout, p, $t.attr('data-level'))) {
                             dt.effectAllowed = 'none';
                             return true;
                         }
@@ -364,6 +395,7 @@
                         event.preventDefault();
                         return false;
                     }
+                    event.preventDefault();
                     dt.effectAllowed = 'none';
                     return true;
                 });
@@ -373,9 +405,16 @@
         _layout = function(data) {
             this.$element = null;
             this.design = true;
+            this.showPreview = true;
             this.map = {};
             l.utils.check(data, this.map);
             this.data = data;
+
+            $l.utils.addListener('onToolBoxDragend', this, function() {
+                if (this.$element) {
+                    this.$element.trigger('dragend');
+                }
+            });
         },
         _methods = {
             renderLayout: function(layout) {
@@ -388,38 +427,95 @@
                 var that = this;
                 if (force && that.$element) {
                     $parent = $parent || that.$element.parent();
+                    _removeEvents(that.$element, that, true);
                     that.$element.remove();
                     that.$element = null;
                 }
+                if (force && that.$check) {
+                    _removeDesignModeEvents(that.$check);
+                    that.$check.remove();
+                    that.$check = null;
+                }
+                    
+				if (this.showPreview) {
+					that.$check = $(l.authModeHtml(this.design));
+					if ($parent)
+                        $parent.append(that.$check);					
+					_setDesignModeEvents(that.$check, that, that.design);
+
+				}
                 if (!that.$element) {
                     that.$element = that.renderLayout(that.data);
                     if ($parent)
                         $parent.append(that.$element);
                     _setEvents(that.$element, that, that.design);
+                    var sid = _findSelected(that.map);
+                    if (that.design) 
+                    	_onSelectedChanged(that.$element, that.map[sid], true);
                 }
             },
-            check: function(layout) {
-                l.utils.check(layout, this.map);
+            _destroy: function() {
+                var that = this;
+                if (that.$element) {
+                    _removeEvents(that.$element, that, that.design)
+                    that.$element = null;
+                }
+                if (that.$check) {
+                    _removeDesignModeEvents(that.$check);
+                    that.$check = null;
+                }
+                $l.utils.rmvListener(that);
+
+            },
+            check: function(layout, parent) {
+                l.utils.check(layout, this.map, parent);
             },
             toString: function(layout) {
-                var o = JSON.parse(JSON.stringify(layout || this.data));
+                var o = $.extend(true, {}, JSON.parse(JSON.stringify(layout || this.data)));
+
                 l.utils.clearMeta(o);
                 return JSON.stringify(o, 2)
+            },
+            removeLayout: function(id) {
+            	var that = this;
+            	if (!id || !that.design || !that.map[id]) return;
+            	var d = that.map[id]
+            	if (!d) return;
+            	var p = that.map[d.$parentId];
+            	if (!p) return;
+            	var i = p.$items.indexOf(d);
+            	p.$items.splice(i, 1);
+            	delete that.map[d.$id];
+            	l.utils.afterRemoveChild(p, this.map);
+            	that.render(null, true);
+
+            },
+            setDesignMode: function(value) {
+            	var that = this;
+            	if (that.design != value) {
+            		that.design = value;
+            		that.render(null, true);
+            	}
             },
             select: function(id) {
                 var that = this;
                 var $e = that.$element;
                 if (!id || !that.design || !that.map[id]) return;
                 var old = _findSelected(that.map);
-                if (old == id) return;
                 if (old) {
                     var o = that.map[old]
                     o.selected = false;
                     _showSelected($e, o);
+                    _onSelectedChanged(that.$element, o, false);
+                }
+                if (old == id) {
+                    _onSelectedChanged(that.$element, null, true);
+                    return;
                 }
                 var d = that.map[id]
                 d.selected = true;
                 _showSelected($e, d);
+                _onSelectedChanged(that.$element, d, true);
             },
             getLayoutById: function(id) {
                 if (!id) return null;
