@@ -11,7 +11,11 @@ module.exports = function( grunt ) {
       phoenix:{
         src: [
           'js/core.js',
-          'js/layout.js'
+		  'js/locale.js',
+          'js/layout.js',
+		  'js/layout.widget.js',
+		  'js/toolbox.js',
+		  'js/toolbox.widget.js'
         ],
         dest: 'dist/js/<%= pkg.name %>.js'
       }
