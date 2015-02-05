@@ -3,7 +3,7 @@
     //Toolbar element 
     // {$type: "layout", $stype: "block/html/row/panel/accordion", $title:[]}
     var _checkItem = function(item, parent, map, utils) {
-            item.$id = utils.allocUuid();
+            item.$id = utils.allocID();
             if (parent) item.$parentId = parent.$id;
             if (item.$items) item.$contentId = utils.allocUuid();
             if (map) map[item.$id] = item;

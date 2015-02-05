@@ -2,9 +2,8 @@
 (function($l) {
     var _locale = $l.locale.layouts;
     var _checkLayout = function(layout, parent, utils, map) {
-    		console.log(layout);
-            if (!layout.$id)
-                layout.$id = utils.allocUuid();
+    		if (!layout.$id)
+                layout.$id = utils.allocID();
             if (parent)
                 layout.$parentId = parent.$id;
             layout.$idDesign = layout.$id;
@@ -446,7 +445,6 @@
             return true;
         },
         _canSelectLayout = function(layout, level) {
-        	console.log(layout.$type + "  " +level) ;
         	if (layout.$type == "column" && level == 1) return false;
         	return true;
         }
@@ -496,7 +494,7 @@
     };
     _l.utils.canDropChild = _canDropChild;
     _l.utils.canSelect = _canSelectLayout; 
-    _l.setClassName = _setLayoutCss;
+    _l.utils.updateCssClass = _setLayoutCss;
     _l.authModeHtml = _createAuthoringMode;
     _l.toHtml = function(layout, schema, model, options) {
         var html = [];
@@ -505,3 +503,5 @@
     }
     return $l;
 }(Phoenix));
+
+

@@ -1,13 +1,17 @@
 'use strict';
 var Phoenix = (function() {
     var phoenix = {};
-    var uuid = function() {
-            function _p8(s) {
-                var p = (Math.random().toString(16) + "000000000").substr(2, 8);
-                return s ? "-" + p.substr(0, 4) + "-" + p.substr(4, 4) : p;
-            }
+
+    var _p8 = function(s) {
+	        var p = (Math.random().toString(16) + "000000000").substr(2, 8);
+	        return s ? "-" + p.substr(0, 4) + "-" + p.substr(4, 4) : p;
+    	},
+    	uuid = function() {
             return _p8() + _p8(true) + _p8(true) + _p8();
         },
+		allocID = function() {
+            return "I" + _p8() + _p8() + _p8() + _p8();
+        },        
         _eventListeners = {},
         _dragData,
         _setDragData = function(data) {
@@ -52,12 +56,23 @@ var Phoenix = (function() {
         };
     phoenix.utils = {
         allocUuid: uuid,
+        allocID: allocID,
         setDragData: _setDragData,
         getDragData: _getDragData,
         emit: _emitEvent,
         addListener: _regListener,
         rmvListener: _unregListener
     };
+    phoenix.dom = {
+    	find: function(parent, id) {
+    		if (parent) {
+    			if (parent.id == id) return parent;
+    			return parent.querySelector('#'+id);
+    		}
+    		return document.getElementById(id);
+
+    	}
+    }
     return phoenix;
 })();
 

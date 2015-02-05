@@ -521,7 +521,6 @@ window.Phoenix = Phoenix
                 }
             }
             if (child.$type == 'column') return false;
-            console.log('_canDropChild');
             return true;
         },
         _canSelectLayout = function(layout, level) {

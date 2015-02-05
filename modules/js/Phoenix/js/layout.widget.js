@@ -28,7 +28,7 @@
         },        
         _createTopList = function($p, exclude, placeHolder) {
             var res = [];
-            var childs = $p.children();
+            var childs = $p.get(0).childNodes;
             for (var i = 0, len = childs.length; i < len; i++) {
                 var c = childs[i];
                 var o = $(c).offset();
@@ -137,7 +137,7 @@
             return null;
         },
         _findElement = function($root, id) {
-            return $('#' + id);
+            return $($l.dom.find($root.get(0), id));
         },
         _showSelected = function($element, layout) {
             if (!$element) return;
@@ -159,9 +159,9 @@
                 if ($element.get(0) != $p.get(0)) {
                     if (layout.selected) {
                         var $r = $('<div class="bs-rt-button" data-remove="true"><span class="glyphicon glyphicon-remove-sign"></span></div>')
-                        var c = $p.children();
+                        var c = $p.get(0).childNodes;
                         if (c.length)
-                            $(c.get(0)).before($r);
+                            $(c[0]).before($r);
                         else
                             $p.append($r);
                     } else {
@@ -189,7 +189,7 @@
                 $element.off('click');
                 $element.find('div[draggable="true"]').off('dragstart').add($element).off('dragend');
                 $element.find('div[draggable="true"]').off('dragstart');
-                $element.find('.drop-layouts-zone').add($element).off('dragover dragenter drop');
+                $element.find('.drop-layouts-zone, .drop-fields-zone').add($element).off('dragover dragenter drop');
             }
         },
         _removeDesignModeEvents = function($check) {
@@ -205,12 +205,12 @@
         _updateCss = function(item, $element, layout, design) {
             var $l1 = _findElement($element, item.$id);
             var $l2 = (item.$id != item.$idStep2) ? _findElement($element, item.$idStep2) : null;
-            l.setClassName($l1, item, layout.getLayoutById(item.$parentId), {
+            l.utils.updateCssClass($l1, item, layout.getLayoutById(item.$parentId), {
                 design: design,
                 step: 1
             });
             if ($l2)
-                l.setClassName($l2, item, layout.getLayoutById(item.$parentId), {
+                l.utils.updateCssClass($l2, item, layout.getLayoutById(item.$parentId), {
                     design: design,
                     step: 2
                 });
@@ -322,11 +322,18 @@
                     _cleanUp();
                     return false;
                 });
-                $element.find('.drop-layouts-zone').add($element).on('dragover dragenter drop', function(event) {
+                $element.find('.drop-layouts-zone, .drop-fields-zone').add($element).on('dragover dragenter drop', function(event) {
                     var $t = $(this),
-                        td;
-                    var e = event.originalEvent ? event.originalEvent : event;
+                        td = $l.utils.getDragData(),
+                    	e = event.originalEvent ? event.originalEvent : event,
+                    	dt = e.dataTransfer;
                     event.stopPropagation();
+					if (!td || (!td.isLayout && !$t.hasClass('drop-fields-zone')) || 
+                    	(td.isLayout && !$t.hasClass('drop-layouts-zone'))){
+						dt.effectAllowed = 'none';
+                        return true;                    	
+                    }
+
                     if (event.type == 'drop') {
                         console.log("drop");
                         event.preventDefault();
@@ -345,9 +352,7 @@
                         _cleanUp();
                         return false;
                     }
-                    var dt = e.dataTransfer;
-                    var t = dt.getData('Text');
-                    td = $l.utils.getDragData();
+                    dt.getData('Text');
                     if (startDrag) {
                         if (!dragging) return
                         startDrag = false;
