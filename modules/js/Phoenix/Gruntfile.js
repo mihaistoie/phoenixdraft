@@ -18,8 +18,27 @@ module.exports = function( grunt ) {
 		  'js/toolbox.widget.js'
         ],
         dest: 'dist/js/<%= pkg.name %>.js'
+      },
+      phoenixcss:{
+        src: [
+          'css/layouts.css',
+		  'css/core.css'
+        ],
+        dest: 'dist/css/<%= pkg.name %>.css'
       }
     },
+	cssmin: {
+	  target: {
+		files: [{
+		  expand: true,
+		  cwd: 'dist/css',
+		  src: ['*.css', '!*.min.css'],
+		  dest: 'dist/css',
+		  ext: '.min.css'
+		}]
+	  }
+	},	
+	
     uglify: {
       options: {
         preserveComments: 'some'
@@ -64,10 +83,11 @@ module.exports = function( grunt ) {
   grunt.loadNpmTasks('grunt-contrib-jshint');
   grunt.loadNpmTasks('grunt-contrib-uglify');
   grunt.loadNpmTasks('grunt-contrib-concat');
+  grunt.loadNpmTasks('grunt-contrib-cssmin');
   grunt.loadNpmTasks('grunt-jsvalidate');
   grunt.loadNpmTasks('grunt-bump');
 
   grunt.registerTask('default', ['build']);
   grunt.registerTask('validate', ['jsvalidate', 'jshint']);
-  grunt.registerTask('build', ['clean', 'concat', 'uglify']);
+  grunt.registerTask('build', ['clean', 'concat', 'cssmin', 'uglify']);
 };
