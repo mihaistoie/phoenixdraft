@@ -4,31 +4,36 @@
     var _dom = $l.dom;
     var _event2Id = function(event, root, layout) {
             var t = event.target,
-                id = null, level, ll;
+                id = null,
+                level, ll;
             while (t) {
                 var id = t.getAttribute('data-layout');
+
                 if (id) {
-                	level = parseInt(t.getAttribute('data-level') || '1',10);
-                	ll = layout.getLayoutById(id);
-                	if (!ll || !l.utils.canSelect(ll, level)) id = null
-                	if (id)
-                    	break;
+                    level = parseInt(t.getAttribute('data-level') || '1', 10);
+                    ll = layout.getLayoutById(id);
+                    if (!ll || !l.utils.canSelect(ll, level)) id = null
+                    if (id)
+                        break;
+                } else {
+                    id = t.getAttribute('data-render');
+                    if (id) break;
                 }
                 t = (t == root) ? null : t.parentNode;
             }
             return id;
         },
-		_isRemoveButton = function(event, root) {
+        _isRemoveButton = function(event, root) {
             var t = event.target;
             while (t) {
                 if (t.hasAttribute('data-remove'))
-                	return true;
+                    return true;
                 t = (t == root) ? null : t.parentNode;
             }
             return false;
-        },        
+        },
         _event = function(event) {
-        	return event.originalEvent ? event.originalEvent: event;
+            return event.originalEvent ? event.originalEvent : event;
         },
         _createTopList = function(p, exclude, placeHolder) {
             var res = [];
@@ -72,13 +77,13 @@
         },
         _appendPlaceHolder = function(parent, list, index, placeHolder, parentLayout, level) {
             var _beforeAppend = function(sameParent) {
-            	if (placeHolder.parentNode)
-                	_dom.remove(placeHolder);
+                if (placeHolder.parentNode)
+                    _dom.remove(placeHolder);
                 if (parentLayout.$type && !sameParent) {
-                	if (parentLayout.$type == 'column' && level == 1) {
-                    	_dom.addClass(placeHolder, 'col');
+                    if (parentLayout.$type == 'column' && level == 1) {
+                        _dom.addClass(placeHolder, 'col');
                     } else {
-                    	_dom.removeClass(placeHolder, 'col');
+                        _dom.removeClass(placeHolder, 'col');
                     }
                 }
             }
@@ -113,25 +118,25 @@
             return true;
         },
         _createPlaceHolderOnStart = function(proto, placeHolder, isLayout, isField, isWidget) {
-        	if (isLayout) {
-	        	if (placeHolder)
-	        		_dom.remove(placeHolder);
-	        	placeHolder = document.createElement('div');
-	            placeHolder.className = proto.className;
-	            _dom.addClass(placeHolder, 'drop-target');
-	            _dom.before(proto, placeHolder);
-	            return placeHolder;
-        	} else {
-        		placeHolder = _createEmptyPlaceHolderOnStart(placeHolder, false, isField, isWidget);
-        		_dom.before(proto, placeHolder);
-        	}
-        	return placeHolder;
+            if (isLayout) {
+                if (placeHolder)
+                    _dom.remove(placeHolder);
+                placeHolder = document.createElement('div');
+                placeHolder.className = proto.className;
+                _dom.addClass(placeHolder, 'drop-target');
+                _dom.before(proto, placeHolder);
+                return placeHolder;
+            } else {
+                placeHolder = _createEmptyPlaceHolderOnStart(placeHolder, false, isField, isWidget);
+                _dom.before(proto, placeHolder);
+            }
+            return placeHolder;
         },
         _createEmptyPlaceHolderOnStart = function(placeHolder, isLayout, isField, isWidget) {
-        	if (placeHolder) 
-        		_dom.remove(placeHolder);
+            if (placeHolder)
+                _dom.remove(placeHolder);
             placeHolder = document.createElement('div');
-            placeHolder.className = 'container-fluid no-x-padding drop-layouts-zone drop-fields-zone design drop-target' + (isLayout ? "" : " field") + (isWidget ?" widget": "");
+            placeHolder.className = 'container-fluid no-x-padding drop-layouts-zone drop-fields-zone design drop-target' + (isLayout ? "" : " field") + (isWidget ? " widget" : "");
             console.log(isWidget);
             return placeHolder;
         },
@@ -142,12 +147,17 @@
             document.body.appendChild(crt);
             return crt;
         },
-        _findSelected = function(map) {
-            var ids = Object.keys(map);
-            var i = ids.length;
-            while (i--) {
-                if (map[ids[i]].selected) {
-                    return ids[i];
+        _findSelected = function(maps) {
+            var j = maps.length;
+            while (j--) {
+            	var map = maps[j];
+                var ids = Object.keys(map);
+                var i = ids.length;
+                while (i--) {
+                    var o = map[ids[i]];
+                    if (o.selected) {
+                        return o;
+                    }
                 }
             }
             return null;
@@ -158,7 +168,7 @@
             if (layout.selected)
                 _dom.addClass(e, 'selected');
             else
-            	_dom.removeClass(e, 'selected');
+                _dom.removeClass(e, 'selected');
         },
         _notifySelectedChanged = function(layout) {
             $l.utils.emit("SelectedChanged", {
@@ -166,27 +176,27 @@
                 data: layout
             });
         },
-        _onSelectedChanged = function($element, layout, notify) {
-            if (layout) {
-                var p = _dom.find($element.get(0), layout.$idDrag);
-                if ($element.get(0) != p) {
-                    if (layout.selected) {
+        _onSelectedChanged = function(element, data, notify) {
+            if (data) {
+                var p = _dom.find(element, data.$idDrag);
+                if (element != p) {
+                    if (data.selected) {
                         var r = $('<div class="bs-rt-button" data-remove="true"><span class="glyphicon glyphicon-remove-sign"></span></div>').get(0);
                         var c = p.childNodes;
                         if (c.length)
-                        	_dom.before(c[0], r);
+                            _dom.before(c[0], r);
                         else
-                        	_dom.append(p, r);
+                            _dom.append(p, r);
                     } else {
-                       var rmv = p.querySelector('div[data-remove="true"]');
-                       if (rmv) _dom.remove(rmv);
+                        var rmv = p.querySelector('div[data-remove="true"]');
+                        if (rmv) _dom.remove(rmv);
                     }
                 }
             }
             if (notify) {
                 $l.utils.emit("SelectedChanged", {
-                    type: "layout",
-                    data: layout
+                    type: data ? (data.$type ? "layout" : "field"): null,
+                    data: data
                 });
             }
         },
@@ -207,18 +217,18 @@
             }
         },
         _removeDesignModeEvents = function($check) {
-        		$check.find('input[type="checkbox"]').off('click');
+            $check.find('input[type="checkbox"]').off('click');
 
         },
         _setDesignModeEvents = function($check, layout, design) {
-        	$check.find('input[type="checkbox"]').on('click', function(event) {
-        		layout.setDesignMode(this.checked);
-        	});
+            $check.find('input[type="checkbox"]').on('click', function(event) {
+                layout.setDesignMode(this.checked);
+            });
 
         },
         _accceptNewChild = function(p, td) {
-        	if (td.isLayout) return true;
-        	return (td.isField || td.isWidget);
+            if (td.isLayout) return true;
+            return (td.isField || td.isWidget);
         },
         _updateCss = function(item, element, layout, design) {
             var l1 = _dom.find(element, item.$id);
@@ -238,11 +248,11 @@
                 var dragging, dragImage, startDrag, placeHolder, topList;
                 var _cleanUp = function() {
                         if (dragging) {
-                        	_dom.removeClass(dragging, 'bs-none');
+                            _dom.removeClass(dragging, 'bs-none');
                             dragging = null;
                         }
                         if (placeHolder) {
-                        	_dom.remove(placeHolder);
+                            _dom.remove(placeHolder);
                             placeHolder = null;
                         }
                         if (dragImage) {
@@ -288,8 +298,8 @@
                                 }
 
                                 var toUpdate = [op];
-                                if (td.isLayout) 
-                                	toUpdate.push(moved);
+                                if (td.isLayout)
+                                    toUpdate.push(moved);
                                 if (np != op) toUpdate.push(np);
                                 // setevents
                                 _removeEvents($element, layout, design);
@@ -300,7 +310,7 @@
                                 });
                                 return;
                             } else {
-                            	layout.check(moved, np);
+                                layout.check(moved, np);
                             }
                             layout.render(null, true);
                         }
@@ -308,19 +318,20 @@
                 $element.on('click', function(event) {
                     var id = _event2Id(event, $element.get(0), layout);
                     if (_isRemoveButton(event, $element.get(0))) {
-                    	layout.removeLayout(id);	
-                    	return;	
+                        layout.removeChild(id);
+                        return;
                     }
                     layout.select(id);
                 });
                 $element.find('div[draggable="true"]').on('dragstart', function(event) {
                     event.stopPropagation();
-                    var isField = false, isWidget=false;
+                    var isField = false,
+                        isWidget = false;
                     var l = layout.getLayoutById(this.getAttribute('data-layout'));
                     if (!l) {
-                    	l = layout.getFieldById(this.getAttribute('data-render'));
-                    	isField = true;
-                    	isWidget = (l.$config != null);
+                        l = layout.getFieldById(this.getAttribute('data-render'));
+                        isField = true;
+                        isWidget = (l.$config != null);
                     }
                     if (!l) {
                         event.preventDefault();
@@ -352,15 +363,15 @@
                     return false;
                 });
                 $element.find('.drop-layouts-zone, .drop-fields-zone').add($element).on('dragover dragenter drop', function(event) {
-                    var t = this,  
+                    var t = this,
                         td = $l.utils.getDragData(),
-                    	e =  _event(event),
-                    	dt = e.dataTransfer;
+                        e = _event(event),
+                        dt = e.dataTransfer;
                     event.stopPropagation();
-					if (!td || (!td.isLayout && !_dom.hasClass(t, 'drop-fields-zone')) || 
-                    	(td.isLayout && !_dom.hasClass(t,'drop-layouts-zone'))){
-						dt.effectAllowed = 'none';
-                        return true;                    	
+                    if (!td || (!td.isLayout && !_dom.hasClass(t, 'drop-fields-zone')) ||
+                        (td.isLayout && !_dom.hasClass(t, 'drop-layouts-zone'))) {
+                        dt.effectAllowed = 'none';
+                        return true;
                     }
 
                     if (event.type == 'drop') {
@@ -398,10 +409,10 @@
                     if (!placeHolder) {
                         if (!td.isNew) return true;
                         if (!_accceptNewChild(p, td)) {
-                        	dt.effectAllowed = 'none';
-	                    	return true;                        	
+                            dt.effectAllowed = 'none';
+                            return true;
                         }
-                    	topList = _createTopList(t, dragging, placeHolder);
+                        topList = _createTopList(t, dragging, placeHolder);
                         var iph = _newIndex(topList, e.pageY);
                         placeHolder = _createEmptyPlaceHolderOnStart(placeHolder, td.isLayout, td.isField, td.isWidget);
                         _appendPlaceHolder(t, topList, iph, placeHolder, p, level);
@@ -466,22 +477,22 @@
                     that.$check.remove();
                     that.$check = null;
                 }
-                    
-				if (this.showPreview) {
-					that.$check = $(l.authModeHtml(this.design));
-					if ($parent)
-                        $parent.append(that.$check);					
-					_setDesignModeEvents(that.$check, that, that.design);
 
-				}
+                if (this.showPreview) {
+                    that.$check = $(l.authModeHtml(this.design));
+                    if ($parent)
+                        $parent.append(that.$check);
+                    _setDesignModeEvents(that.$check, that, that.design);
+
+                }
                 if (!that.$element) {
                     that.$element = that.renderLayout(that.data);
                     if ($parent)
                         $parent.append(that.$element);
                     _setEvents(that.$element, that, that.design);
-                    var sid = _findSelected(that.map);
-                    if (that.design) 
-                    	_onSelectedChanged(that.$element, that.map[sid], true);
+                    var o = _findSelected([that.map, that.mapFields]);
+                    if (that.design)
+                        _onSelectedChanged(that.$element.get(0), o, true);
                 }
             },
             _destroy: function() {
@@ -498,7 +509,7 @@
 
             },
             check: function(layout, parent) {
-            	l.utils.check(layout, parent, this.map, this.mapFields);
+                l.utils.check(layout, parent, this.map, this.mapFields);
             },
             toString: function(layout) {
                 var o = $.extend(true, {}, JSON.parse(JSON.stringify(layout || this.data)));
@@ -506,46 +517,45 @@
                 l.utils.clearMeta(o);
                 return JSON.stringify(o, 2)
             },
-            removeLayout: function(id) {
+            removeChild: function(id) {
             	var that = this;
-            	if (!id || !that.design || !that.map[id]) return;
-            	var d = that.map[id]
-            	if (!d) return;
-            	var p = that.map[d.$parentId];
-            	if (!p) return;
-            	var i = p.$items.indexOf(d);
-            	p.$items.splice(i, 1);
-            	delete that.map[d.$id];
-            	l.utils.afterRemoveChild(p, this.map, this.mapFields);
-            	that.render(null, true);
+                if (!id || !that.design) return;
+                var d = that.map[id] || that.mapFields[id];
+                if (!d) return;
+                var p = that.map[d.$parentId];
+                if (!p) return;
+                var i = p.$items.indexOf(d);
+                p.$items.splice(i, 1);
+                l.utils.clearMaps(d, this.map, this.mapFields);
+                l.utils.afterRemoveChild(p, this.map, this.mapFields);
+                that.render(null, true);
 
             },
             setDesignMode: function(value) {
-            	var that = this;
-            	if (that.design != value) {
-            		that.design = value;
-            		that.render(null, true);
-            	}
+                var that = this;
+                if (that.design != value) {
+                    that.design = value;
+                    that.render(null, true);
+                }
             },
             select: function(id) {
                 var that = this;
                 var $e = that.$element;
-                if (!id || !that.design || !that.map[id]) return;
-                var old = _findSelected(that.map);
-                if (old) {
-                    var o = that.map[old]
+                if (!id || !that.design) return;
+                var o = _findSelected([that.map, that.mapFields]);
+                if (o) {
                     o.selected = false;
                     _showSelected($e, o);
-                    _onSelectedChanged(that.$element, o, false);
-                }
-                if (old == id) {
-                    _onSelectedChanged(that.$element, null, true);
-                    return;
-                }
-                var d = that.map[id]
+                    _onSelectedChanged($e.get(0), o, false);
+	                if (o.$id == id) {
+	                    _onSelectedChanged($e.get(0), null, true);
+	                    return;
+	                }
+                } 
+                var d = (that.map[id] ? that.map[id] : that.mapFields[id]);
                 d.selected = true;
                 _showSelected($e, d);
-                _onSelectedChanged(that.$element, d, true);
+                _onSelectedChanged($e.get(0), d, true);
             },
             getLayoutById: function(id) {
                 if (!id) return null;
@@ -555,7 +565,7 @@
             getFieldById: function(id) {
                 if (!id) return null;
                 var that = this;
-                return that.mapFields[id];            
+                return that.mapFields[id];
             }
         };
     $.extend(_layout.prototype, _methods);

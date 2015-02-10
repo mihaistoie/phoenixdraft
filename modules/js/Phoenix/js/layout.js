@@ -426,7 +426,7 @@
             }
         },
         _nullHtmlFieldRender = function (html, item, layout, model, locale, utils, design) {
-        	html.push('<div class="field' + (design ? ' design': '')+ (item.$config ? ' widget"': '"'));
+        	html.push('<div class="field' + (design ? ' design': '') + (item.$config ? ' widget"': '"') + (item.selected ? ' selected"': '"'));
         	if (design) html.push(' draggable="true"')
         	html.push(' data-render="'+item.$id+'"');
         	html.push(' id="'+item.$id+'"');
@@ -547,6 +547,17 @@
             }
         }, true);
     };
+    
+    _l.utils.clearMaps = function(layout, map, mapFields) {
+		_enumElements(layout, null, function(item, parent, isLayout, before) {    	
+			if (before ) {
+				if (isLayout)
+					delete map[item.$id];
+				else
+					delete mapFields[item.$id];
+			}
+		},true);
+    },
     _l.utils.afterRemoveChild = function(layout, map, mapFields) {
         if (layout.$type == "row") {
             layout.$items.forEach(function(item) {
