@@ -18,6 +18,14 @@
             }
 
         },
+		_checkField = function(field, parent, utils, map) {
+    		if (!field.$id)
+                field.$id = utils.allocID();
+            if (parent)
+                field.$parentId = parent.$id;
+            field.$idDrag = field.$id;
+            if (map) map[field.$id] = field;
+        },        
         _checkRowChilds = function(layout) {
             if (!layout.$items.length) {
                 layout.$items.push({});
@@ -46,12 +54,16 @@
             }
             return true;
         },
-        _needParentPadding = function(layout) {
+        _hasBorder = function(layout) {
         	return (layout.$type == "panel");
+        },
+        _needParentPadding = function(layout) {
+
+        	return  _hasBorder(layout);
         },
         _noPadding = function(layout) {
         	var res = true;
-        	if (!layout.$items.length)  return res;
+        	if (!layout.$items.length || !_hasBorder(layout))  return res;
         	layout.$items.forEach(function(item){
         		if (res) {
        				res = !_needParentPadding(item);
@@ -66,8 +78,9 @@
                 return false;
             if (layout.$items.length > 0) {
                 var l = layout.$items[0];
-                if (l.$type || layout.$items )
+                if (l.$type || l.$items)
                     return false
+
             }
             return true;
         },
@@ -83,19 +96,23 @@
             }
         },
         _css = function(layout, parent, options) {
-            var css = [];
+            var css = [], canAddLayouts;
             switch (layout.$type) {
                 case "block":
                     css.push("container-fluid");
-                    if (_canAddLayouts(layout)) {
-                    	if (options.design || _noPadding(layout))
-                        	css.push("no-x-padding");
+                    canAddLayouts = _canAddLayouts(layout);
+                    if (canAddLayouts) {
+						if (options.design || _noPadding(layout))
+                        	css.push("no-x-padding"); 
                         if (options.design)
                             css.push("drop-layouts-zone");
                     }
                     if (_canAddFields(layout)) {
-                        if (options.design)
+                        if (options.design) {
                             css.push("drop-fields-zone");
+                            if (!canAddLayouts)
+                            	css.push("no-x-padding"); 
+                        }
                     }
                     if (options.design) {
                         css.push("design");
@@ -143,7 +160,8 @@
                         }
                     } else if (options.step == 2) {
                         css.push("panel-body");
-                        if (_canAddLayouts(layout)) {
+                        canAddLayouts = _canAddLayouts(layout);
+                        if (canAddLayouts) {
                         	if (options.design || _noPadding(layout)) {
                         		css.push("no-x-padding");
                             	css.push("no-y-padding");
@@ -153,8 +171,11 @@
                                 css.push("drop-layouts-zone");
                         }
                         if (_canAddFields(layout)) {
-                            if (options.design)
+                            if (options.design) {
                                 css.push("drop-fields-zone");
+                                if (!canAddLayouts) 
+                                	css.push("no-x-padding");
+                             }
                         }
                         _addStdThemes(layout, css);
 
@@ -172,7 +193,8 @@
                             css.push("drop-layouts-zone");
                     } else if (options.step == 2) {
                     	css.push("container-fluid");
-                        if (_canAddLayouts(layout)) {
+                    	canAddLayouts = _canAddLayouts(layout);
+                        if (canAddLayouts) {
 	                    	if (options.design || _noPadding(layout)) {
 	                    		css.push("no-x-padding");
 	                        }
@@ -180,8 +202,11 @@
                                 css.push("drop-layouts-zone");
                         }
                         if (_canAddFields(layout)) {
-                            if (options.design)
+                            if (options.design) {
                                 css.push("drop-fields-zone");
+                                if (!canAddLayouts) 
+                                	css.push("no-x-padding");
+                            }
                         }
 
                         if (options.design) {
@@ -203,9 +228,9 @@
             }
             return css;
         },
-        _setLayoutCss = function($e, layout, parent, options) {
+        _setLayoutCss = function(e, layout, parent, options) {
             var css = _css(layout, parent, options);
-            $e.attr('class', css.join(' '));
+            e.className = css.join(' ');
         },
 
         _addLayoutCss = function(html, layout, parent, options) {
@@ -242,7 +267,7 @@
             }
         },
 
-        _panelBefore = function(html, layout, parent, schema, model, locale, utils, design) {
+        _panelBefore = function(html, layout, parent, model, locale, utils, design) {
             html.push('<div');
             if (design) html.push(' draggable="true"');
             _addLayoutCss(html, layout, parent, {
@@ -270,7 +295,7 @@
             html.push('>');
 
         },
-        _panelAfter = function(html, layout, parent, schema, model, locale, utils, design) {
+        _panelAfter = function(html, layout, parent, model, locale, utils, design) {
             html.push('</div>');
             if (layout.$footer) {
             	html.push('<div class="panel-footer">');
@@ -279,7 +304,7 @@
             }
             html.push('</div>');
         },
-        _blockBefore = function(html, layout, parent, schema, model, locale, utils, design) {
+        _blockBefore = function(html, layout, parent, model, locale, utils, design) {
             html.push('<div');
             if (design) html.push(' draggable="true"')
             _addLayoutCss(html, layout, parent, {
@@ -291,10 +316,10 @@
             _addDataStep(html, 1, design);
             html.push('>');
         },
-        _blockAfter = function(html, layout, schema, model, locale, utils, design) {
+        _blockAfter = function(html, layout, model, locale, utils, design) {
             html.push('</div>');
         },
-        _htmlBefore = function(html, layout, parent, schema, model, locale, utils, design) {
+        _htmlBefore = function(html, layout, parent, model, locale, utils, design) {
             html.push('<div');
             if (design) html.push(' draggable="true"');
             _addLayoutCss(html, layout, parent, {
@@ -308,10 +333,10 @@
             if (layout.$html)
             	html.push(layout.$html);
         },
-        _htmlAfter = function(html, layout, schema, model, locale, utils, design) {
+        _htmlAfter = function(html, layout, model, locale, utils, design) {
             html.push('</div>');
         },
-        _accordionBefore = function(html, layout, parent, schema, model, locale, utils, design) {
+        _accordionBefore = function(html, layout, parent, model, locale, utils, design) {
             html.push('<div role="tablist" aria-multiselectable="true"');
             if (design) html.push(' draggable="true"');
             _addLayoutCss(html, layout, parent, {
@@ -323,10 +348,10 @@
             _addDataStep(html, 1, design);
             html.push('>');
         },
-        _accordionAfter = function(html, layout, parent, schema, model, locale, utils, design) {
+        _accordionAfter = function(html, layout, parent, model, locale, utils, design) {
             html.push('</div>');
         },
-        _rowBefore = function(html, layout, parent, schema, model, locale, utils, design) {
+        _rowBefore = function(html, layout, parent, model, locale, utils, design) {
             html.push('<div');
             if (design) html.push(' draggable="true"')
             _addLayoutCss(html, layout, parent, {
@@ -348,10 +373,10 @@
             html.push('>');
             _checkRowChilds(layout);
         },
-        _rowAfter = function(html, layout, parent, schema, model, locale, utils, design) {
+        _rowAfter = function(html, layout, parent, model, locale, utils, design) {
             html.push('</div></div>');
         },
-        _columnBefore = function(html, layout, parent, schema, model, locale, utils, design) {
+        _columnBefore = function(html, layout, parent, model, locale, utils, design) {
             html.push('<div');
             _addLayoutCss(html, layout, parent, {
                 design: design,
@@ -374,51 +399,76 @@
             _addDataStep(html, 2, design);
             html.push('>');
         },
-        _columnAfter = function(html, layout, parent, schema, model, locale, utils, design) {
+        _columnAfter = function(html, layout, parent, model, locale, utils, design) {
             html.push('</div></div>');
 
         },
-        _enumLayouts = function(layout, parent, onlayout) {
-            var onlyFields = false;
+        _enumElements = function(layout, parent, onElement, root) {
             if (layout) {
-                onlayout(layout, parent, true);
-                if (_canAddFields(layout)) {} else {
+            	if (root && !layout.$type && !layout.$items) {
+            		onElement(layout, parent, false, true);
+            		return;
+            	}
+                onElement(layout, parent, true, true);
+                if (_canAddFields(layout)) {
                     if (layout.$items)
                         layout.$items.forEach(function(item) {
-                            _enumLayouts(item, layout, onlayout)
+                             onElement(item, layout, false, true);
+                        });
+
+                } else {
+                    if (layout.$items) 
+                        layout.$items.forEach(function(item) {
+                            _enumElements(item, layout, onElement, false);
                         });
                 }
-                onlayout(layout, parent, false);
+                onElement(layout, parent, true, false);
             }
         },
-        _renderLayout = function(layout, schema, model, html, locale, utils, options) {
-            _enumLayouts(layout, null, function(item, parent, before) {
-                var rb = _blockBefore;
-                var ra = _blockAfter;
-                switch (item.$type) {
-                    case "row":
-                        rb = _rowBefore;
-                        ra = _rowAfter;
-                        break;
-                    case "column":
-                        rb = _columnBefore;
-                        ra = _columnAfter;
-                        break;
-                    case "panel":
-                        rb = _panelBefore;
-                        ra = _panelAfter;
-                        break;
-                    case "html":
-                        rb = _htmlBefore;
-                        ra = _htmlAfter;
-                        break;
-                }
-                if (before) {
-                    rb(html, item, parent, schema, model, locale, utils, options.design);
-                } else {
-                    ra(html, item, parent, schema, model, locale, utils, options.design);
-                }
-            });
+        _nullHtmlFieldRender = function (html, item, layout, model, locale, utils, design) {
+        	html.push('<div class="field' + (design ? ' design': '')+ (item.$config ? ' widget"': '"'));
+        	if (design) html.push(' draggable="true"')
+        	html.push(' data-render="'+item.$id+'"');
+        	html.push(' id="'+item.$id+'"');
+        	html.push('></div>') 
+        },
+        _renderLayout = function(layout, model, html, locale, utils, options) {
+        	var htmlFieldRender = _nullHtmlFieldRender;
+            _enumElements(layout, null, function(item, parent, isLayout, before) {
+            	if (isLayout) {
+	                var rb = _blockBefore;
+	                var ra = _blockAfter;
+	                switch (item.$type) {
+	                    case "row":
+	                        rb = _rowBefore;
+	                        ra = _rowAfter;
+	                        break;
+	                    case "column":
+	                        rb = _columnBefore;
+	                        ra = _columnAfter;
+	                        break;
+	                    case "panel":
+	                        rb = _panelBefore;
+	                        ra = _panelAfter;
+	                        break;
+	                    case "html":
+	                        rb = _htmlBefore;
+	                        ra = _htmlAfter;
+	                        break;
+	                }
+	                if (before) {
+	                    rb(html, item, parent, model, locale, utils, options.design);
+	                } else {
+	                    ra(html, item, parent, model, locale, utils, options.design);
+	                }
+            	} else {
+            		if (htmlFieldRender) {
+            			htmlFieldRender(html, item, parent, model, locale, utils, options.design);
+
+            		}
+
+            	}
+            }, true);
         },
         _createAuthoringMode = function(design) {
             var html = [
@@ -433,16 +483,30 @@
 
         },
         _canDropChild = function(child, parent, parentLevel) {
-        	parentLevel = parseInt(parentLevel || '1', 10);
-            if (!parent || !child) return false;
-            if (parent.$type == 'column') {
-                if (parentLevel == '1') {
-                    return (parent == child)
-                }
-            }
-            if (child.$type == 'column') return false;
-            console.log('_canDropChild');
-            return true;
+        	if (child.$type) {
+        		/* child is layout */
+	        	parentLevel = parseInt(parentLevel || '1', 10);
+	            if (!parent || !child) return false;
+	            if (parent.$type == 'column') {
+	                if (parentLevel == '1') {
+	                    return (parent == child)
+	                }
+	            }
+	            if (child.$type == 'column') return false;
+	            return true;
+        	} else if (child.$bind || child.$config) {
+        		/* child is field or widget */
+        		var i = parent.$items.length;
+        		if (!i)
+        			return true;
+        		var ctype = child.$bind ? '$bind' : '$config';
+        		while( i--) {
+        			if (!parent.$items[i][ctype]) return false;
+        		}
+        		return true;
+
+        	}
+        	return false;
         },
         _canSelectLayout = function(layout, level) {
         	if (layout.$type == "column" && level == 1) return false;
@@ -452,16 +516,20 @@
     $l.layout = $l.layout || {};
     var _l = $l.layout;
     _l.utils = _l.utils || {};
-    _l.utils.check = function(layout, map, parentLayout) {
-        _enumLayouts(layout, parentLayout, function(item, parent, before) {
+    _l.utils.check = function(layout, parentLayout, map, mapFields) {
+        _enumElements(layout, parentLayout, function(item, parent, isLayout, before) {
             if (before) {
-                _checkLayout(item, parent, $l.utils, map);
+            	if (isLayout) 
+                	_checkLayout(item, parent, $l.utils, map);
+                else 
+                	_checkField(item, parent, $l.utils, mapFields);
             }
-        });
+        }, true);
     };
+    
     _l.utils.clearMeta = function(layout) {
-        _enumLayouts(layout, null, function(item, parent, before) {
-            if (before) {
+        _enumElements(layout, null, function(item, parent, isLayout, before) {
+            if (isLayout && before) {
                 delete item.$id;
                 delete item.$idDesign;
                 delete item.$idDrag;
@@ -477,9 +545,9 @@
                         delete layout.$html; 
                 }
             }
-        });
+        }, true);
     };
-    _l.utils.afterRemoveChild = function(layout, map) {
+    _l.utils.afterRemoveChild = function(layout, map, mapFields) {
         if (layout.$type == "row") {
             layout.$items.forEach(function(item) {
                 item.$type = "column";
@@ -488,7 +556,7 @@
             var docheck = !layout.$items.length;
             _checkRowChilds(layout);
             layout.$items.forEach(function(item) {
-                _l.utils.check(item, map, layout);
+                _l.utils.check(item, layout, map, mapFields);
             });
         }
     };
@@ -496,9 +564,9 @@
     _l.utils.canSelect = _canSelectLayout; 
     _l.utils.updateCssClass = _setLayoutCss;
     _l.authModeHtml = _createAuthoringMode;
-    _l.toHtml = function(layout, schema, model, options) {
+    _l.toHtml = function(layout, model, options) {
         var html = [];
-        _renderLayout(layout, schema, model, html, $l.locale, $l.utils, options);
+        _renderLayout(layout, model, html, $l.locale, $l.utils, options);
         return html.join('');
     }
     return $l;

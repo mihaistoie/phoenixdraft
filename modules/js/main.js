@@ -4,7 +4,7 @@ $(function() {
 		"$items": [
 			{"$items": [
 					{"$type": "block"}, 
-					{"$type":"row", "$items": [{}, {}]}
+					{"$type":"row", "$items": [{}, {"$items":[{"$bind":"text"}]}]}
 				]
 			},
 			{"$type":"row", "$items": [{}, {}, {}]},
@@ -23,9 +23,12 @@ $(function() {
 				{"$type": "item", "$title": "Html", "data": {"$type": "layout", "data": {"$type": "html"}}}
 				]},
 			{"$type": "group", "$title": "Fields",  "$items": [
-				{"$type": "item", "$title": "Simple field", "data": {"$type": "component", "data": {"$bind": "string"}}}
+				{"$type": "item", "$title": "Simple field", "data": {"$type": "field", "data": {"$bind": "string"}}}
 			]},
-			{"$type": "group", "$title": "Widgets",  "$items": []},
+			{"$type": "group", "$title": "Widgets",  "$items": [
+				{"$type": "item", "$title": "Widget Image", "data": {"$type": "widget", "data": {"$config": {}}}},
+				{"$type": "item", "$title": "Widget GMaps", "data": {"$type": "widget", "data": {"$config": {}}}}
+			]},
 			{"$type": "group", "$title": "Property Editor",  "$items": []}
 		]
 	};

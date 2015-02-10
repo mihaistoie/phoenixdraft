@@ -1,13 +1,17 @@
 'use strict';
 var Phoenix = (function() {
     var phoenix = {};
-    var uuid = function() {
-            function _p8(s) {
-                var p = (Math.random().toString(16) + "000000000").substr(2, 8);
-                return s ? "-" + p.substr(0, 4) + "-" + p.substr(4, 4) : p;
-            }
+
+    var _p8 = function(s) {
+	        var p = (Math.random().toString(16) + "000000000").substr(2, 8);
+	        return s ? "-" + p.substr(0, 4) + "-" + p.substr(4, 4) : p;
+    	},
+    	uuid = function() {
             return _p8() + _p8(true) + _p8(true) + _p8();
         },
+		allocID = function() {
+            return "I" + _p8() + _p8() + _p8() + _p8();
+        },        
         _eventListeners = {},
         _dragData,
         _setDragData = function(data) {
@@ -49,15 +53,56 @@ var Phoenix = (function() {
                     _rmvlistener(_eventListeners[evn]);
                 });
             }
-        };
+        }, 
+        _find = function(parent, id) {
+    		if (parent) {
+    			if (parent.id == id) return parent;
+    			return parent.querySelector('#'+id);
+    		}
+    		return document.getElementById(id);
+
+    	},
+    	_addClass = function(element, className) {
+    		element.classList.add(className);
+    	},
+    	_removeClass = function(element, className) {
+    		element.classList.remove(className);
+    	},
+    	_hasClass = function(element, className) {
+    		return element.classList.contains(className);
+    	},
+    	_remove = function(element) {
+   			element.parentNode.removeChild(element);
+    	},
+    	_detach = function(element) {
+    		return element.parentNode.removeChild(element);
+    	},
+    	_append = function(parent, element) {
+    		parent.appendChild(element); 
+    	},
+    	_before = function(child, element) {
+    		child.parentNode.insertBefore(element, child);
+    	};
+
     phoenix.utils = {
         allocUuid: uuid,
+        allocID: allocID,
         setDragData: _setDragData,
         getDragData: _getDragData,
         emit: _emitEvent,
         addListener: _regListener,
         rmvListener: _unregListener
     };
+    phoenix.dom = {
+    	find: _find,
+    	addClass: _addClass,
+    	removeClass: _removeClass,
+    	hasClass: _hasClass,
+    	before: _before,
+    	append: _append,
+    	remove: _remove,
+    	detach: _detach
+    }
     return phoenix;
 })();
 
@@ -81,9 +126,8 @@ window.Phoenix = Phoenix
 (function($l) {
     var _locale = $l.locale.layouts;
     var _checkLayout = function(layout, parent, utils, map) {
-    		console.log(layout);
-            if (!layout.$id)
-                layout.$id = utils.allocUuid();
+    		if (!layout.$id)
+                layout.$id = utils.allocID();
             if (parent)
                 layout.$parentId = parent.$id;
             layout.$idDesign = layout.$id;
@@ -98,6 +142,14 @@ window.Phoenix = Phoenix
             }
 
         },
+		_checkField = function(field, parent, utils, map) {
+    		if (!field.$id)
+                field.$id = utils.allocID();
+            if (parent)
+                field.$parentId = parent.$id;
+            field.$idDrag = field.$id;
+            if (map) map[field.$id] = field;
+        },        
         _checkRowChilds = function(layout) {
             if (!layout.$items.length) {
                 layout.$items.push({});
@@ -126,12 +178,16 @@ window.Phoenix = Phoenix
             }
             return true;
         },
-        _needParentPadding = function(layout) {
+        _hasBorder = function(layout) {
         	return (layout.$type == "panel");
+        },
+        _needParentPadding = function(layout) {
+
+        	return  _hasBorder(layout);
         },
         _noPadding = function(layout) {
         	var res = true;
-        	if (!layout.$items.length)  return res;
+        	if (!layout.$items.length || !_hasBorder(layout))  return res;
         	layout.$items.forEach(function(item){
         		if (res) {
        				res = !_needParentPadding(item);
@@ -146,8 +202,9 @@ window.Phoenix = Phoenix
                 return false;
             if (layout.$items.length > 0) {
                 var l = layout.$items[0];
-                if (l.$type || layout.$items )
+                if (l.$type || l.$items)
                     return false
+
             }
             return true;
         },
@@ -163,19 +220,23 @@ window.Phoenix = Phoenix
             }
         },
         _css = function(layout, parent, options) {
-            var css = [];
+            var css = [], canAddLayouts;
             switch (layout.$type) {
                 case "block":
                     css.push("container-fluid");
-                    if (_canAddLayouts(layout)) {
-                    	if (options.design || _noPadding(layout))
-                        	css.push("no-x-padding");
+                    canAddLayouts = _canAddLayouts(layout);
+                    if (canAddLayouts) {
+						if (options.design || _noPadding(layout))
+                        	css.push("no-x-padding"); 
                         if (options.design)
                             css.push("drop-layouts-zone");
                     }
                     if (_canAddFields(layout)) {
-                        if (options.design)
+                        if (options.design) {
                             css.push("drop-fields-zone");
+                            if (!canAddLayouts)
+                            	css.push("no-x-padding"); 
+                        }
                     }
                     if (options.design) {
                         css.push("design");
@@ -223,7 +284,8 @@ window.Phoenix = Phoenix
                         }
                     } else if (options.step == 2) {
                         css.push("panel-body");
-                        if (_canAddLayouts(layout)) {
+                        canAddLayouts = _canAddLayouts(layout);
+                        if (canAddLayouts) {
                         	if (options.design || _noPadding(layout)) {
                         		css.push("no-x-padding");
                             	css.push("no-y-padding");
@@ -233,8 +295,11 @@ window.Phoenix = Phoenix
                                 css.push("drop-layouts-zone");
                         }
                         if (_canAddFields(layout)) {
-                            if (options.design)
+                            if (options.design) {
                                 css.push("drop-fields-zone");
+                                if (!canAddLayouts) 
+                                	css.push("no-x-padding");
+                             }
                         }
                         _addStdThemes(layout, css);
 
@@ -252,7 +317,8 @@ window.Phoenix = Phoenix
                             css.push("drop-layouts-zone");
                     } else if (options.step == 2) {
                     	css.push("container-fluid");
-                        if (_canAddLayouts(layout)) {
+                    	canAddLayouts = _canAddLayouts(layout);
+                        if (canAddLayouts) {
 	                    	if (options.design || _noPadding(layout)) {
 	                    		css.push("no-x-padding");
 	                        }
@@ -260,8 +326,11 @@ window.Phoenix = Phoenix
                                 css.push("drop-layouts-zone");
                         }
                         if (_canAddFields(layout)) {
-                            if (options.design)
+                            if (options.design) {
                                 css.push("drop-fields-zone");
+                                if (!canAddLayouts) 
+                                	css.push("no-x-padding");
+                            }
                         }
 
                         if (options.design) {
@@ -283,9 +352,9 @@ window.Phoenix = Phoenix
             }
             return css;
         },
-        _setLayoutCss = function($e, layout, parent, options) {
+        _setLayoutCss = function(e, layout, parent, options) {
             var css = _css(layout, parent, options);
-            $e.attr('class', css.join(' '));
+            e.className = css.join(' ');
         },
 
         _addLayoutCss = function(html, layout, parent, options) {
@@ -322,7 +391,7 @@ window.Phoenix = Phoenix
             }
         },
 
-        _panelBefore = function(html, layout, parent, schema, model, locale, utils, design) {
+        _panelBefore = function(html, layout, parent, model, locale, utils, design) {
             html.push('<div');
             if (design) html.push(' draggable="true"');
             _addLayoutCss(html, layout, parent, {
@@ -350,7 +419,7 @@ window.Phoenix = Phoenix
             html.push('>');
 
         },
-        _panelAfter = function(html, layout, parent, schema, model, locale, utils, design) {
+        _panelAfter = function(html, layout, parent, model, locale, utils, design) {
             html.push('</div>');
             if (layout.$footer) {
             	html.push('<div class="panel-footer">');
@@ -359,7 +428,7 @@ window.Phoenix = Phoenix
             }
             html.push('</div>');
         },
-        _blockBefore = function(html, layout, parent, schema, model, locale, utils, design) {
+        _blockBefore = function(html, layout, parent, model, locale, utils, design) {
             html.push('<div');
             if (design) html.push(' draggable="true"')
             _addLayoutCss(html, layout, parent, {
@@ -371,10 +440,10 @@ window.Phoenix = Phoenix
             _addDataStep(html, 1, design);
             html.push('>');
         },
-        _blockAfter = function(html, layout, schema, model, locale, utils, design) {
+        _blockAfter = function(html, layout, model, locale, utils, design) {
             html.push('</div>');
         },
-        _htmlBefore = function(html, layout, parent, schema, model, locale, utils, design) {
+        _htmlBefore = function(html, layout, parent, model, locale, utils, design) {
             html.push('<div');
             if (design) html.push(' draggable="true"');
             _addLayoutCss(html, layout, parent, {
@@ -388,10 +457,10 @@ window.Phoenix = Phoenix
             if (layout.$html)
             	html.push(layout.$html);
         },
-        _htmlAfter = function(html, layout, schema, model, locale, utils, design) {
+        _htmlAfter = function(html, layout, model, locale, utils, design) {
             html.push('</div>');
         },
-        _accordionBefore = function(html, layout, parent, schema, model, locale, utils, design) {
+        _accordionBefore = function(html, layout, parent, model, locale, utils, design) {
             html.push('<div role="tablist" aria-multiselectable="true"');
             if (design) html.push(' draggable="true"');
             _addLayoutCss(html, layout, parent, {
@@ -403,10 +472,10 @@ window.Phoenix = Phoenix
             _addDataStep(html, 1, design);
             html.push('>');
         },
-        _accordionAfter = function(html, layout, parent, schema, model, locale, utils, design) {
+        _accordionAfter = function(html, layout, parent, model, locale, utils, design) {
             html.push('</div>');
         },
-        _rowBefore = function(html, layout, parent, schema, model, locale, utils, design) {
+        _rowBefore = function(html, layout, parent, model, locale, utils, design) {
             html.push('<div');
             if (design) html.push(' draggable="true"')
             _addLayoutCss(html, layout, parent, {
@@ -428,10 +497,10 @@ window.Phoenix = Phoenix
             html.push('>');
             _checkRowChilds(layout);
         },
-        _rowAfter = function(html, layout, parent, schema, model, locale, utils, design) {
+        _rowAfter = function(html, layout, parent, model, locale, utils, design) {
             html.push('</div></div>');
         },
-        _columnBefore = function(html, layout, parent, schema, model, locale, utils, design) {
+        _columnBefore = function(html, layout, parent, model, locale, utils, design) {
             html.push('<div');
             _addLayoutCss(html, layout, parent, {
                 design: design,
@@ -454,51 +523,76 @@ window.Phoenix = Phoenix
             _addDataStep(html, 2, design);
             html.push('>');
         },
-        _columnAfter = function(html, layout, parent, schema, model, locale, utils, design) {
+        _columnAfter = function(html, layout, parent, model, locale, utils, design) {
             html.push('</div></div>');
 
         },
-        _enumLayouts = function(layout, parent, onlayout) {
-            var onlyFields = false;
+        _enumElements = function(layout, parent, onElement, root) {
             if (layout) {
-                onlayout(layout, parent, true);
-                if (_canAddFields(layout)) {} else {
+            	if (root && !layout.$type && !layout.$items) {
+            		onElement(layout, parent, false, true);
+            		return;
+            	}
+                onElement(layout, parent, true, true);
+                if (_canAddFields(layout)) {
                     if (layout.$items)
                         layout.$items.forEach(function(item) {
-                            _enumLayouts(item, layout, onlayout)
+                             onElement(item, layout, false, true);
+                        });
+
+                } else {
+                    if (layout.$items) 
+                        layout.$items.forEach(function(item) {
+                            _enumElements(item, layout, onElement, false);
                         });
                 }
-                onlayout(layout, parent, false);
+                onElement(layout, parent, true, false);
             }
         },
-        _renderLayout = function(layout, schema, model, html, locale, utils, options) {
-            _enumLayouts(layout, null, function(item, parent, before) {
-                var rb = _blockBefore;
-                var ra = _blockAfter;
-                switch (item.$type) {
-                    case "row":
-                        rb = _rowBefore;
-                        ra = _rowAfter;
-                        break;
-                    case "column":
-                        rb = _columnBefore;
-                        ra = _columnAfter;
-                        break;
-                    case "panel":
-                        rb = _panelBefore;
-                        ra = _panelAfter;
-                        break;
-                    case "html":
-                        rb = _htmlBefore;
-                        ra = _htmlAfter;
-                        break;
-                }
-                if (before) {
-                    rb(html, item, parent, schema, model, locale, utils, options.design);
-                } else {
-                    ra(html, item, parent, schema, model, locale, utils, options.design);
-                }
-            });
+        _nullHtmlFieldRender = function (html, item, layout, model, locale, utils, design) {
+        	html.push('<div class="field' + (design ? ' design': '')+ (item.$config ? ' widget"': '"'));
+        	if (design) html.push(' draggable="true"')
+        	html.push(' data-render="'+item.$id+'"');
+        	html.push(' id="'+item.$id+'"');
+        	html.push('></div>') 
+        },
+        _renderLayout = function(layout, model, html, locale, utils, options) {
+        	var htmlFieldRender = _nullHtmlFieldRender;
+            _enumElements(layout, null, function(item, parent, isLayout, before) {
+            	if (isLayout) {
+	                var rb = _blockBefore;
+	                var ra = _blockAfter;
+	                switch (item.$type) {
+	                    case "row":
+	                        rb = _rowBefore;
+	                        ra = _rowAfter;
+	                        break;
+	                    case "column":
+	                        rb = _columnBefore;
+	                        ra = _columnAfter;
+	                        break;
+	                    case "panel":
+	                        rb = _panelBefore;
+	                        ra = _panelAfter;
+	                        break;
+	                    case "html":
+	                        rb = _htmlBefore;
+	                        ra = _htmlAfter;
+	                        break;
+	                }
+	                if (before) {
+	                    rb(html, item, parent, model, locale, utils, options.design);
+	                } else {
+	                    ra(html, item, parent, model, locale, utils, options.design);
+	                }
+            	} else {
+            		if (htmlFieldRender) {
+            			htmlFieldRender(html, item, parent, model, locale, utils, options.design);
+
+            		}
+
+            	}
+            }, true);
         },
         _createAuthoringMode = function(design) {
             var html = [
@@ -513,18 +607,32 @@ window.Phoenix = Phoenix
 
         },
         _canDropChild = function(child, parent, parentLevel) {
-        	parentLevel = parseInt(parentLevel || '1', 10);
-            if (!parent || !child) return false;
-            if (parent.$type == 'column') {
-                if (parentLevel == '1') {
-                    return (parent == child)
-                }
-            }
-            if (child.$type == 'column') return false;
-            return true;
+        	if (child.$type) {
+        		/* child is layout */
+	        	parentLevel = parseInt(parentLevel || '1', 10);
+	            if (!parent || !child) return false;
+	            if (parent.$type == 'column') {
+	                if (parentLevel == '1') {
+	                    return (parent == child)
+	                }
+	            }
+	            if (child.$type == 'column') return false;
+	            return true;
+        	} else if (child.$bind || child.$config) {
+        		/* child is field or widget */
+        		var i = parent.$items.length;
+        		if (!i)
+        			return true;
+        		var ctype = child.$bind ? '$bind' : '$config';
+        		while( i--) {
+        			if (!parent.$items[i][ctype]) return false;
+        		}
+        		return true;
+
+        	}
+        	return false;
         },
         _canSelectLayout = function(layout, level) {
-        	console.log(layout.$type + "  " +level) ;
         	if (layout.$type == "column" && level == 1) return false;
         	return true;
         }
@@ -532,16 +640,20 @@ window.Phoenix = Phoenix
     $l.layout = $l.layout || {};
     var _l = $l.layout;
     _l.utils = _l.utils || {};
-    _l.utils.check = function(layout, map, parentLayout) {
-        _enumLayouts(layout, parentLayout, function(item, parent, before) {
+    _l.utils.check = function(layout, parentLayout, map, mapFields) {
+        _enumElements(layout, parentLayout, function(item, parent, isLayout, before) {
             if (before) {
-                _checkLayout(item, parent, $l.utils, map);
+            	if (isLayout) 
+                	_checkLayout(item, parent, $l.utils, map);
+                else 
+                	_checkField(item, parent, $l.utils, mapFields);
             }
-        });
+        }, true);
     };
+    
     _l.utils.clearMeta = function(layout) {
-        _enumLayouts(layout, null, function(item, parent, before) {
-            if (before) {
+        _enumElements(layout, null, function(item, parent, isLayout, before) {
+            if (isLayout && before) {
                 delete item.$id;
                 delete item.$idDesign;
                 delete item.$idDrag;
@@ -557,9 +669,9 @@ window.Phoenix = Phoenix
                         delete layout.$html; 
                 }
             }
-        });
+        }, true);
     };
-    _l.utils.afterRemoveChild = function(layout, map) {
+    _l.utils.afterRemoveChild = function(layout, map, mapFields) {
         if (layout.$type == "row") {
             layout.$items.forEach(function(item) {
                 item.$type = "column";
@@ -568,53 +680,59 @@ window.Phoenix = Phoenix
             var docheck = !layout.$items.length;
             _checkRowChilds(layout);
             layout.$items.forEach(function(item) {
-                _l.utils.check(item, map, layout);
+                _l.utils.check(item, layout, map, mapFields);
             });
         }
     };
     _l.utils.canDropChild = _canDropChild;
     _l.utils.canSelect = _canSelectLayout; 
-    _l.setClassName = _setLayoutCss;
+    _l.utils.updateCssClass = _setLayoutCss;
     _l.authModeHtml = _createAuthoringMode;
-    _l.toHtml = function(layout, schema, model, options) {
+    _l.toHtml = function(layout, model, options) {
         var html = [];
-        _renderLayout(layout, schema, model, html, $l.locale, $l.utils, options);
+        _renderLayout(layout, model, html, $l.locale, $l.utils, options);
         return html.join('');
     }
     return $l;
 }(Phoenix));
 
+
+
 'use strict';
 (function($l, $) {
     var l = $l.layout;
+    var _dom = $l.dom;
     var _event2Id = function(event, root, layout) {
-            var t = $(event.target),
+            var t = event.target,
                 id = null, level, ll;
-            while (t &&  t.get(0)) {
-                var id = t.attr('data-layout');
+            while (t) {
+                var id = t.getAttribute('data-layout');
                 if (id) {
-                	level = parseInt(t.attr('data-level') || '1',10);
+                	level = parseInt(t.getAttribute('data-level') || '1',10);
                 	ll = layout.getLayoutById(id);
                 	if (!ll || !l.utils.canSelect(ll, level)) id = null
-                	if (id) 
+                	if (id)
                     	break;
                 }
-                t = (t.get(0) == root.get(0)) ? null : t.parent();
+                t = (t == root) ? null : t.parentNode;
             }
             return id;
         },
 		_isRemoveButton = function(event, root) {
-            var t = $(event.target);
-            while (t && t.get(0)) {
-                if (t.attr('data-remove'))
+            var t = event.target;
+            while (t) {
+                if (t.hasAttribute('data-remove'))
                 	return true;
-                t = (t.get(0) == root.get(0)) ? null : t.parent();
+                t = (t == root) ? null : t.parentNode;
             }
             return false;
         },        
-        _createTopList = function($p, exclude, placeHolder) {
+        _event = function(event) {
+        	return event.originalEvent ? event.originalEvent: event;
+        },
+        _createTopList = function(p, exclude, placeHolder) {
             var res = [];
-            var childs = $p.children();
+            var childs = p.childNodes;
             for (var i = 0, len = childs.length; i < len; i++) {
                 var c = childs[i];
                 var o = $(c).offset();
@@ -640,31 +758,33 @@ window.Phoenix = Phoenix
             }
             return index;
         },
-        _indexInParent = function(parent, placeHolder, dragging) {
+        _indexInParent = function(parent, placeHolder, dragging, isLayout) {
             var j = 0;
             for (var i = 0, len = parent.childNodes.length; i < len; i++) {
                 var c = parent.childNodes[i];
                 if (c == placeHolder) return j;
                 if (c == dragging) continue;
-                if (!c.hasAttribute('data-layout')) continue;
+                if (isLayout && !c.hasAttribute('data-layout')) continue;
+                if (!isLayout && !c.hasAttribute('data-render')) continue;
                 j++;
             }
             return 0;
         },
-        _appendPlaceHolder = function($parent, list, index, $placeHolder, parent, level) {
+        _appendPlaceHolder = function(parent, list, index, placeHolder, parentLayout, level) {
             var _beforeAppend = function(sameParent) {
-                $placeHolder.remove();
-                if (!sameParent) {
-                    if (parent.$type == 'column' && level == 1) {
-                        $placeHolder.addClass('col')
+            	if (placeHolder.parentNode)
+                	_dom.remove(placeHolder);
+                if (parentLayout.$type && !sameParent) {
+                	if (parentLayout.$type == 'column' && level == 1) {
+                    	_dom.addClass(placeHolder, 'col');
                     } else {
-                        $placeHolder.removeClass('col')
+                    	_dom.removeClass(placeHolder, 'col');
                     }
                 }
             }
             if (!list.length) {
                 _beforeAppend(false);
-                $parent.append($placeHolder);
+                _dom.append(parent, placeHolder);
                 return true;
             }
             var phIndex = -1;
@@ -684,32 +804,42 @@ window.Phoenix = Phoenix
             }
             if (phIndex < 0 || index >= list.length) {
                 _beforeAppend(phIndex >= 0);
-                $parent.append($placeHolder);
+                _dom.append(parent, placeHolder);
             } else {
-                var $c = $($parent.get(0).childNodes[index]);
+                var c = parent.childNodes[index];
                 _beforeAppend(phIndex >= 0);
-                $c.before($placeHolder);
+                _dom.before(c, placeHolder);
             }
             return true;
         },
-        _createPlaceHolderOnStart = function(proto, placeHolder) {
-            placeHolder && placeHolder.remove();
-            placeHolder = $('<div></div>');
-            placeHolder.addClass(proto.attr('class'));
-            placeHolder.addClass('drop-target');
-            proto.before(placeHolder);
-            return placeHolder;
+        _createPlaceHolderOnStart = function(proto, placeHolder, isLayout, isField, isWidget) {
+        	if (isLayout) {
+	        	if (placeHolder)
+	        		_dom.remove(placeHolder);
+	        	placeHolder = document.createElement('div');
+	            placeHolder.className = proto.className;
+	            _dom.addClass(placeHolder, 'drop-target');
+	            _dom.before(proto, placeHolder);
+	            return placeHolder;
+        	} else {
+        		placeHolder = _createEmptyPlaceHolderOnStart(placeHolder, false, isField, isWidget);
+        		_dom.before(proto, placeHolder);
+        	}
+        	return placeHolder;
         },
-        _createEmptyPlaceHolderOnStart = function(placeHolder, $p, $index) {
-            placeHolder && placeHolder.remove();
-            placeHolder = $('<div></div>');
-            placeHolder.addClass("container-fluid no-x-padding drop-layouts-zone drop-fields-zone design drop-target");
+        _createEmptyPlaceHolderOnStart = function(placeHolder, isLayout, isField, isWidget) {
+        	if (placeHolder) 
+        		_dom.remove(placeHolder);
+            placeHolder = document.createElement('div');
+            placeHolder.className = 'container-fluid no-x-padding drop-layouts-zone drop-fields-zone design drop-target' + (isLayout ? "" : " field") + (isWidget ?" widget": "");
+            console.log(isWidget);
             return placeHolder;
         },
 
         _createDragImage = function(isLayout) {
-            var crt = $('<div class="bs-drag-image"></div>');
-            document.body.appendChild(crt.get(0));
+            var crt = document.createElement('div');
+            crt.className = 'bs-drag-image';
+            document.body.appendChild(crt);
             return crt;
         },
         _findSelected = function(map) {
@@ -722,16 +852,13 @@ window.Phoenix = Phoenix
             }
             return null;
         },
-        _findElement = function($root, id) {
-            return $('#' + id);
-        },
         _showSelected = function($element, layout) {
             if (!$element) return;
-            var $e = _findElement($element, layout.$idDrag);
+            var e = _dom.find($element.get(0), layout.$idDrag);
             if (layout.selected)
-                $e.addClass('selected');
+                _dom.addClass(e, 'selected');
             else
-                $e.removeClass('selected');
+            	_dom.removeClass(e, 'selected');
         },
         _notifySelectedChanged = function(layout) {
             $l.utils.emit("SelectedChanged", {
@@ -741,17 +868,18 @@ window.Phoenix = Phoenix
         },
         _onSelectedChanged = function($element, layout, notify) {
             if (layout) {
-                var $p = _findElement($element, layout.$idDrag);
-                if ($element.get(0) != $p.get(0)) {
+                var p = _dom.find($element.get(0), layout.$idDrag);
+                if ($element.get(0) != p) {
                     if (layout.selected) {
-                        var $r = $('<div class="bs-rt-button" data-remove="true"><span class="glyphicon glyphicon-remove-sign"></span></div>')
-                        var c = $p.children();
+                        var r = $('<div class="bs-rt-button" data-remove="true"><span class="glyphicon glyphicon-remove-sign"></span></div>').get(0);
+                        var c = p.childNodes;
                         if (c.length)
-                            $(c.get(0)).before($r);
+                        	_dom.before(c[0], r);
                         else
-                            $p.append($r);
+                        	_dom.append(p, r);
                     } else {
-                        $p.children('div[data-remove="true"]').remove();
+                       var rmv = p.querySelector('div[data-remove="true"]');
+                       if (rmv) _dom.remove(rmv);
                     }
                 }
             }
@@ -764,18 +892,18 @@ window.Phoenix = Phoenix
         },
         _startDrag = function($element, layout) {
             if (!$element) return;
-            var $e = _findElement($element, layout.$idDrag);
+            var e = _dom.find($element.get(0), layout.$idDrag);
             if (layout.selected)
-                $e.addClass('selected');
+                _dom.addClass(e, 'selected');
             else
-                $e.removeClass('selected');
+                _dom.removeClass(e, 'selected');
         },
         _removeEvents = function($element, layout, design) {
             if (design) {
                 $element.off('click');
                 $element.find('div[draggable="true"]').off('dragstart').add($element).off('dragend');
                 $element.find('div[draggable="true"]').off('dragstart');
-                $element.find('.drop-layouts-zone').add($element).off('dragover dragenter drop');
+                $element.find('.drop-layouts-zone, .drop-fields-zone').add($element).off('dragover dragenter drop');
             }
         },
         _removeDesignModeEvents = function($check) {
@@ -788,15 +916,19 @@ window.Phoenix = Phoenix
         	});
 
         },
-        _updateCss = function(item, $element, layout, design) {
-            var $l1 = _findElement($element, item.$id);
-            var $l2 = (item.$id != item.$idStep2) ? _findElement($element, item.$idStep2) : null;
-            l.setClassName($l1, item, layout.getLayoutById(item.$parentId), {
+        _accceptNewChild = function(p, td) {
+        	if (td.isLayout) return true;
+        	return (td.isField || td.isWidget);
+        },
+        _updateCss = function(item, element, layout, design) {
+            var l1 = _dom.find(element, item.$id);
+            var l2 = (item.$id != item.$idStep2) ? _dom.find(element, item.$idStep2) : null;
+            l.utils.updateCssClass(l1, item, layout.getLayoutById(item.$parentId), {
                 design: design,
                 step: 1
             });
-            if ($l2)
-                l.setClassName($l2, item, layout.getLayoutById(item.$parentId), {
+            if (l2)
+                l.utils.updateCssClass(l2, item, layout.getLayoutById(item.$parentId), {
                     design: design,
                     step: 2
                 });
@@ -806,15 +938,15 @@ window.Phoenix = Phoenix
                 var dragging, dragImage, startDrag, placeHolder, topList;
                 var _cleanUp = function() {
                         if (dragging) {
-                            dragging.removeClass('bs-none');
+                        	_dom.removeClass(dragging, 'bs-none');
                             dragging = null;
                         }
                         if (placeHolder) {
-                            placeHolder.remove();
+                        	_dom.remove(placeHolder);
                             placeHolder = null;
                         }
                         if (dragImage) {
-                            dragImage.remove()
+                            _dom.remove(dragImage)
                             dragImage = null;
                         }
                         topList = null;
@@ -823,15 +955,16 @@ window.Phoenix = Phoenix
                     },
                     _performDrop = function(td) {
                         console.log("Drop event");
-                        if (td && td.isLayout) {
-                            if (td.layout == td.dst) return;
+                        var root = $element.get(0);
+                        if (td) {
+                            if (td.data == td.dst) return;
                             var ni, oi, op,
                                 np = td.dst,
-                                moved = td.layout;
-                            var $e = _findElement($element, moved.$id),
-                                $p = _findElement($element, np.$idDesign),
-                                $c;
-                            if (moved.$parentId == np) {
+                                moved = td.data;
+                            var e = _dom.find(root, moved.$id),
+                                p = _dom.find(root, np.$idDesign),
+                                c;
+                            if (moved.$parentId == np.$id) {
                                 // same parent
                                 op = td.dst;
                                 oi = op.$items.indexOf(moved);
@@ -846,33 +979,35 @@ window.Phoenix = Phoenix
                             if (oi >= 0) op.$items.splice(oi, 1);
                             np.$items.splice(ni, 0, moved);
                             if (!td.isNew) {
-                                if (oi >= 0) $e.detach();
+                                if (oi >= 0) e = _dom.detach(e);
                                 if (ni == (np.$items.length - 1))
-                                    $p.append($e);
+                                    _dom.append(p, e);
                                 else {
-                                    $c = _findElement($element, np.$items[ni + 1].$id);
-                                    $c.before($e);
+                                    c = _dom.find(root, np.$items[ni + 1].$id);
+                                    _dom.before(c, e);
                                 }
 
-                                var toUpdate = [moved, op];
+                                var toUpdate = [op];
+                                if (td.isLayout) 
+                                	toUpdate.push(moved);
                                 if (np != op) toUpdate.push(np);
                                 // setevents
                                 _removeEvents($element, layout, design);
                                 _setEvents($element, layout, design);
                                 //update css 
                                 toUpdate.forEach(function(item) {
-                                    _updateCss(item, $element, layout, design);
+                                    _updateCss(item, root, layout, design);
                                 });
                                 return;
                             } else {
-                                layout.check(moved, np);
+                            	layout.check(moved, np);
                             }
                             layout.render(null, true);
                         }
                     };
                 $element.on('click', function(event) {
-                    var id = _event2Id(event, $element, layout);
-                    if (_isRemoveButton(event, $element)) {
+                    var id = _event2Id(event, $element.get(0), layout);
+                    if (_isRemoveButton(event, $element.get(0))) {
                     	layout.removeLayout(id);	
                     	return;	
                     }
@@ -880,24 +1015,32 @@ window.Phoenix = Phoenix
                 });
                 $element.find('div[draggable="true"]').on('dragstart', function(event) {
                     event.stopPropagation();
-                    var l = layout.getLayoutById($(this).attr('data-layout'));
+                    var isField = false, isWidget=false;
+                    var l = layout.getLayoutById(this.getAttribute('data-layout'));
+                    if (!l) {
+                    	l = layout.getFieldById(this.getAttribute('data-render'));
+                    	isField = true;
+                    	isWidget = (l.$config != null);
+                    }
                     if (!l) {
                         event.preventDefault();
                         return false;
                     } else {
-                        var dt = (event.originalEvent ? event.originalEvent.dataTransfer : event.dataTransfer);
+                        var dt = _event(event).dataTransfer;
                         dt.effectAllowed = 'move';
                         dt.setData('Text', 'data');
-                        if (dt.setDragImage) {
+                        if (!isField && dt.setDragImage) {
                             dragImage = _createDragImage(true);
-                            dt.setDragImage(dragImage.get(0), 0, 0);
+                            dt.setDragImage(dragImage, 0, 0);
                         }
                         $l.utils.setDragData({
-                            layout: l,
-                            isLayout: true,
+                            data: l,
+                            isLayout: !isField,
+                            isField: isField,
+                            isWidget: isWidget,
                             isNew: false
                         });
-                        dragging = _findElement($element, l.$idDrag);
+                        dragging = _dom.find($element.get(0), l.$idDrag);
                         startDrag = true;
                     }
                 }).add($element).on('dragend', function(event) {
@@ -908,21 +1051,28 @@ window.Phoenix = Phoenix
                     _cleanUp();
                     return false;
                 });
-                $element.find('.drop-layouts-zone').add($element).on('dragover dragenter drop', function(event) {
-                    var $t = $(this),
-                        td;
-                    var e = event.originalEvent ? event.originalEvent : event;
+                $element.find('.drop-layouts-zone, .drop-fields-zone').add($element).on('dragover dragenter drop', function(event) {
+                    var t = this,  
+                        td = $l.utils.getDragData(),
+                    	e =  _event(event),
+                    	dt = e.dataTransfer;
                     event.stopPropagation();
+					if (!td || (!td.isLayout && !_dom.hasClass(t, 'drop-fields-zone')) || 
+                    	(td.isLayout && !_dom.hasClass(t,'drop-layouts-zone'))){
+						dt.effectAllowed = 'none';
+                        return true;                    	
+                    }
+
                     if (event.type == 'drop') {
                         console.log("drop");
                         event.preventDefault();
-                        var dst = layout.getLayoutById($t.attr('data-layout'));
-                        var dstLevel = $t.attr('data-level');
+                        var dst = layout.getLayoutById(t.getAttribute('data-layout'));
+                        var dstLevel = t.getAttribute('data-level');
                         if (dst) {
                             td = $l.utils.getDragData();
                             td.dst = dst;
                             td.dstLevel = dstLevel;
-                            td.indexInParent = _indexInParent($t.get(0), placeHolder.get(0), dragging ? dragging.get(0) : null);
+                            td.indexInParent = _indexInParent(t, placeHolder, dragging, td.isLayout);
                             $l.utils.setDragData(td);
                             _cleanUp();
                             _performDrop(td);
@@ -931,59 +1081,52 @@ window.Phoenix = Phoenix
                         _cleanUp();
                         return false;
                     }
-                    var dt = e.dataTransfer;
-                    var t = dt.getData('Text');
-                    td = $l.utils.getDragData();
+                    dt.getData('Text');
                     if (startDrag) {
                         if (!dragging) return
                         startDrag = false;
                         if (!td.isNew) {
-                            placeHolder = _createPlaceHolderOnStart(dragging, placeHolder);
-                            dragging.addClass('bs-none');
+                            placeHolder = _createPlaceHolderOnStart(dragging, placeHolder, td.isLayout, td.isField, td.isWidget);
+                            _dom.addClass(dragging, 'bs-none');
                             event.preventDefault();
                             return false
                         }
                     }
+                    var p = layout.getLayoutById(t.getAttribute('data-layout'));
+                    var level = t.getAttribute('data-level');
+
                     if (!placeHolder) {
                         if (!td.isNew) return true;
-                        if (td.isLayout) {
-                            topList = _createTopList($t, (dragging ? dragging.get(0) : null), (placeHolder ? placeHolder.get(0) : 0));
-                            var iph = _newIndex(topList, e.pageY);
-                            placeHolder = _createEmptyPlaceHolderOnStart(placeHolder);
-                            var php = layout.getLayoutById($t.attr('data-layout'));
-                            var phplevel = $t.attr('data-level');
-                            _appendPlaceHolder($t, topList, iph, placeHolder, php, phplevel);
-                            topList = null;
-                            event.preventDefault();
-                            return false;
+                        if (!_accceptNewChild(p, td)) {
+                        	dt.effectAllowed = 'none';
+	                    	return true;                        	
                         }
-                    }
-                    if (td.isLayout) {
-                        if (event.type == 'dragenter') topList = null;
-                        if (dragging && (dragging.get(0) == $t.get(0))) {
-                            dt.effectAllowed = 'none';
-                            return true;
-                        }
-                        var p = layout.getLayoutById($t.attr('data-layout'));
-                        var level = $t.attr('data-level');
-
-                        if (!l.utils.canDropChild(td.layout, p, $t.attr('data-level'))) {
-                            dt.effectAllowed = 'none';
-                            return true;
-                        }
-                        if (!topList)
-                            topList = _createTopList($t, (dragging ? dragging.get(0) : null), (placeHolder ? placeHolder.get(0) : 0));
-
-                        var ii = _newIndex(topList, e.pageY);
-                        if (_appendPlaceHolder($t, topList, ii, placeHolder, p, level)) {
-                            topList = null;
-                        }
+                    	topList = _createTopList(t, dragging, placeHolder);
+                        var iph = _newIndex(topList, e.pageY);
+                        placeHolder = _createEmptyPlaceHolderOnStart(placeHolder, td.isLayout, td.isField, td.isWidget);
+                        _appendPlaceHolder(t, topList, iph, placeHolder, p, level);
+                        topList = null;
                         event.preventDefault();
                         return false;
                     }
+                    if (event.type == 'dragenter') topList = null;
+                    if (dragging == t) {
+                        dt.effectAllowed = 'none';
+                        return true;
+                    }
+                    if (!l.utils.canDropChild(td.data, p, level)) {
+                        dt.effectAllowed = 'none';
+                        return true;
+                    }
+                    if (!topList)
+                        topList = _createTopList(t, dragging, placeHolder);
+
+                    var ii = _newIndex(topList, e.pageY);
+                    if (_appendPlaceHolder(t, topList, ii, placeHolder, p, level)) {
+                        topList = null;
+                    }
                     event.preventDefault();
-                    dt.effectAllowed = 'none';
-                    return true;
+                    return false;
                 });
             }
 
@@ -993,7 +1136,8 @@ window.Phoenix = Phoenix
             this.design = true;
             this.showPreview = true;
             this.map = {};
-            l.utils.check(data, this.map);
+            this.mapFields = {};
+            l.utils.check(data, null, this.map, this.mapFields);
             this.data = data;
 
             $l.utils.addListener('onToolBoxDragend', this, function() {
@@ -1005,7 +1149,7 @@ window.Phoenix = Phoenix
         _methods = {
             renderLayout: function(layout) {
                 var that = this;
-                return $(l.toHtml(layout, null, null, {
+                return $(l.toHtml(layout, null, {
                     design: that.design
                 }));
             },
@@ -1054,7 +1198,7 @@ window.Phoenix = Phoenix
 
             },
             check: function(layout, parent) {
-                l.utils.check(layout, this.map, parent);
+            	l.utils.check(layout, parent, this.map, this.mapFields);
             },
             toString: function(layout) {
                 var o = $.extend(true, {}, JSON.parse(JSON.stringify(layout || this.data)));
@@ -1072,7 +1216,7 @@ window.Phoenix = Phoenix
             	var i = p.$items.indexOf(d);
             	p.$items.splice(i, 1);
             	delete that.map[d.$id];
-            	l.utils.afterRemoveChild(p, this.map);
+            	l.utils.afterRemoveChild(p, this.map, this.mapFields);
             	that.render(null, true);
 
             },
@@ -1107,6 +1251,11 @@ window.Phoenix = Phoenix
                 if (!id) return null;
                 var that = this;
                 return that.map[id];
+            },
+            getFieldById: function(id) {
+                if (!id) return null;
+                var that = this;
+                return that.mapFields[id];            
             }
         };
     $.extend(_layout.prototype, _methods);
@@ -1121,7 +1270,7 @@ window.Phoenix = Phoenix
     //Toolbar element 
     // {$type: "layout", $stype: "block/html/row/panel/accordion", $title:[]}
     var _checkItem = function(item, parent, map, utils) {
-            item.$id = utils.allocUuid();
+            item.$id = utils.allocID();
             if (parent) item.$parentId = parent.$id;
             if (item.$items) item.$contentId = utils.allocUuid();
             if (map) map[item.$id] = item;
@@ -1226,11 +1375,19 @@ window.Phoenix = Phoenix
                     var dt = (event.originalEvent ? event.originalEvent.dataTransfer : event.dataTransfer);
                     dt.effectAllowed = 'move';
                     dt.setData('Text', 'Data');
-                    $l.utils.setDragData({
-                        isLayout: (l.data.$type == "layout"),
-                        isNew: true,
-                        layout: $.extend(true, {}, l.data.data)
-                    });
+                    var td = {isNew: true, data: $.extend(true, {}, l.data.data)};
+                    switch (l.data.$type) {
+                        case "layout":
+                            td.isLayout = true;
+                            break;
+                        case "field":
+                            td.isField = true;
+                            break;
+                        case "widget":
+                            td.isWidget = true;
+                            break;
+                    }
+                    $l.utils.setDragData(td);
                 }
             }).on('dragend', function(event) {
                 //end of the drag

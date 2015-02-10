@@ -10,16 +10,40 @@ div.design.panel > div.panel-body {
 	min-height: 40px;
 }
 
+div.field {
+	margin: 0px;
+	margin-top: 8px;
+	margin-bottom: 8px;
+	min-height: 30px;
+	background-color: #fbf8e9;
+	border: 3px solid #f9f3d9;
+}
+
+div.design.field {
+	margin: 8px;
+}
+
+div.widget {
+	min-height: 100px;
+}
+
 .design.col {
 	min-height :100px;
 } 
 .design.selected {
 	background-color: #EEE;
 }
-.drop-target, .drop-target.selected {
+
+div.drop-target, div.drop-target.selected {
 	background-color: yellow;
 	border-style: dashed;
 }
+div.drop-target.field, div.drop-target.selected.field {
+	border-color: #D53537;
+	border-style: dashed;
+}
+
+
 .bs-drag-image {
 	position: absolute;
 	top: 0px;

@@ -1,34 +1,38 @@
 'use strict';
 (function($l, $) {
     var l = $l.layout;
+    var _dom = $l.dom;
     var _event2Id = function(event, root, layout) {
-            var t = $(event.target),
+            var t = event.target,
                 id = null, level, ll;
-            while (t &&  t.get(0)) {
-                var id = t.attr('data-layout');
+            while (t) {
+                var id = t.getAttribute('data-layout');
                 if (id) {
-                	level = parseInt(t.attr('data-level') || '1',10);
+                	level = parseInt(t.getAttribute('data-level') || '1',10);
                 	ll = layout.getLayoutById(id);
                 	if (!ll || !l.utils.canSelect(ll, level)) id = null
-                	if (id) 
+                	if (id)
                     	break;
                 }
-                t = (t.get(0) == root.get(0)) ? null : t.parent();
+                t = (t == root) ? null : t.parentNode;
             }
             return id;
         },
 		_isRemoveButton = function(event, root) {
-            var t = $(event.target);
-            while (t && t.get(0)) {
-                if (t.attr('data-remove'))
+            var t = event.target;
+            while (t) {
+                if (t.hasAttribute('data-remove'))
                 	return true;
-                t = (t.get(0) == root.get(0)) ? null : t.parent();
+                t = (t == root) ? null : t.parentNode;
             }
             return false;
         },        
-        _createTopList = function($p, exclude, placeHolder) {
+        _event = function(event) {
+        	return event.originalEvent ? event.originalEvent: event;
+        },
+        _createTopList = function(p, exclude, placeHolder) {
             var res = [];
-            var childs = $p.get(0).childNodes;
+            var childs = p.childNodes;
             for (var i = 0, len = childs.length; i < len; i++) {
                 var c = childs[i];
                 var o = $(c).offset();
@@ -54,31 +58,33 @@
             }
             return index;
         },
-        _indexInParent = function(parent, placeHolder, dragging) {
+        _indexInParent = function(parent, placeHolder, dragging, isLayout) {
             var j = 0;
             for (var i = 0, len = parent.childNodes.length; i < len; i++) {
                 var c = parent.childNodes[i];
                 if (c == placeHolder) return j;
                 if (c == dragging) continue;
-                if (!c.hasAttribute('data-layout')) continue;
+                if (isLayout && !c.hasAttribute('data-layout')) continue;
+                if (!isLayout && !c.hasAttribute('data-render')) continue;
                 j++;
             }
             return 0;
         },
-        _appendPlaceHolder = function($parent, list, index, $placeHolder, parent, level) {
+        _appendPlaceHolder = function(parent, list, index, placeHolder, parentLayout, level) {
             var _beforeAppend = function(sameParent) {
-                $placeHolder.remove();
-                if (!sameParent) {
-                    if (parent.$type == 'column' && level == 1) {
-                        $placeHolder.addClass('col')
+            	if (placeHolder.parentNode)
+                	_dom.remove(placeHolder);
+                if (parentLayout.$type && !sameParent) {
+                	if (parentLayout.$type == 'column' && level == 1) {
+                    	_dom.addClass(placeHolder, 'col');
                     } else {
-                        $placeHolder.removeClass('col')
+                    	_dom.removeClass(placeHolder, 'col');
                     }
                 }
             }
             if (!list.length) {
                 _beforeAppend(false);
-                $parent.append($placeHolder);
+                _dom.append(parent, placeHolder);
                 return true;
             }
             var phIndex = -1;
@@ -98,32 +104,42 @@
             }
             if (phIndex < 0 || index >= list.length) {
                 _beforeAppend(phIndex >= 0);
-                $parent.append($placeHolder);
+                _dom.append(parent, placeHolder);
             } else {
-                var $c = $($parent.get(0).childNodes[index]);
+                var c = parent.childNodes[index];
                 _beforeAppend(phIndex >= 0);
-                $c.before($placeHolder);
+                _dom.before(c, placeHolder);
             }
             return true;
         },
-        _createPlaceHolderOnStart = function(proto, placeHolder) {
-            placeHolder && placeHolder.remove();
-            placeHolder = $('<div></div>');
-            placeHolder.addClass(proto.attr('class'));
-            placeHolder.addClass('drop-target');
-            proto.before(placeHolder);
-            return placeHolder;
+        _createPlaceHolderOnStart = function(proto, placeHolder, isLayout, isField, isWidget) {
+        	if (isLayout) {
+	        	if (placeHolder)
+	        		_dom.remove(placeHolder);
+	        	placeHolder = document.createElement('div');
+	            placeHolder.className = proto.className;
+	            _dom.addClass(placeHolder, 'drop-target');
+	            _dom.before(proto, placeHolder);
+	            return placeHolder;
+        	} else {
+        		placeHolder = _createEmptyPlaceHolderOnStart(placeHolder, false, isField, isWidget);
+        		_dom.before(proto, placeHolder);
+        	}
+        	return placeHolder;
         },
-        _createEmptyPlaceHolderOnStart = function(placeHolder, $p, $index) {
-            placeHolder && placeHolder.remove();
-            placeHolder = $('<div></div>');
-            placeHolder.addClass("container-fluid no-x-padding drop-layouts-zone drop-fields-zone design drop-target");
+        _createEmptyPlaceHolderOnStart = function(placeHolder, isLayout, isField, isWidget) {
+        	if (placeHolder) 
+        		_dom.remove(placeHolder);
+            placeHolder = document.createElement('div');
+            placeHolder.className = 'container-fluid no-x-padding drop-layouts-zone drop-fields-zone design drop-target' + (isLayout ? "" : " field") + (isWidget ?" widget": "");
+            console.log(isWidget);
             return placeHolder;
         },
 
         _createDragImage = function(isLayout) {
-            var crt = $('<div class="bs-drag-image"></div>');
-            document.body.appendChild(crt.get(0));
+            var crt = document.createElement('div');
+            crt.className = 'bs-drag-image';
+            document.body.appendChild(crt);
             return crt;
         },
         _findSelected = function(map) {
@@ -136,16 +152,13 @@
             }
             return null;
         },
-        _findElement = function($root, id) {
-            return $($l.dom.find($root.get(0), id));
-        },
         _showSelected = function($element, layout) {
             if (!$element) return;
-            var $e = _findElement($element, layout.$idDrag);
+            var e = _dom.find($element.get(0), layout.$idDrag);
             if (layout.selected)
-                $e.addClass('selected');
+                _dom.addClass(e, 'selected');
             else
-                $e.removeClass('selected');
+            	_dom.removeClass(e, 'selected');
         },
         _notifySelectedChanged = function(layout) {
             $l.utils.emit("SelectedChanged", {
@@ -155,17 +168,18 @@
         },
         _onSelectedChanged = function($element, layout, notify) {
             if (layout) {
-                var $p = _findElement($element, layout.$idDrag);
-                if ($element.get(0) != $p.get(0)) {
+                var p = _dom.find($element.get(0), layout.$idDrag);
+                if ($element.get(0) != p) {
                     if (layout.selected) {
-                        var $r = $('<div class="bs-rt-button" data-remove="true"><span class="glyphicon glyphicon-remove-sign"></span></div>')
-                        var c = $p.get(0).childNodes;
+                        var r = $('<div class="bs-rt-button" data-remove="true"><span class="glyphicon glyphicon-remove-sign"></span></div>').get(0);
+                        var c = p.childNodes;
                         if (c.length)
-                            $(c[0]).before($r);
+                        	_dom.before(c[0], r);
                         else
-                            $p.append($r);
+                        	_dom.append(p, r);
                     } else {
-                        $p.children('div[data-remove="true"]').remove();
+                       var rmv = p.querySelector('div[data-remove="true"]');
+                       if (rmv) _dom.remove(rmv);
                     }
                 }
             }
@@ -178,11 +192,11 @@
         },
         _startDrag = function($element, layout) {
             if (!$element) return;
-            var $e = _findElement($element, layout.$idDrag);
+            var e = _dom.find($element.get(0), layout.$idDrag);
             if (layout.selected)
-                $e.addClass('selected');
+                _dom.addClass(e, 'selected');
             else
-                $e.removeClass('selected');
+                _dom.removeClass(e, 'selected');
         },
         _removeEvents = function($element, layout, design) {
             if (design) {
@@ -202,15 +216,19 @@
         	});
 
         },
-        _updateCss = function(item, $element, layout, design) {
-            var $l1 = _findElement($element, item.$id);
-            var $l2 = (item.$id != item.$idStep2) ? _findElement($element, item.$idStep2) : null;
-            l.utils.updateCssClass($l1, item, layout.getLayoutById(item.$parentId), {
+        _accceptNewChild = function(p, td) {
+        	if (td.isLayout) return true;
+        	return (td.isField || td.isWidget);
+        },
+        _updateCss = function(item, element, layout, design) {
+            var l1 = _dom.find(element, item.$id);
+            var l2 = (item.$id != item.$idStep2) ? _dom.find(element, item.$idStep2) : null;
+            l.utils.updateCssClass(l1, item, layout.getLayoutById(item.$parentId), {
                 design: design,
                 step: 1
             });
-            if ($l2)
-                l.utils.updateCssClass($l2, item, layout.getLayoutById(item.$parentId), {
+            if (l2)
+                l.utils.updateCssClass(l2, item, layout.getLayoutById(item.$parentId), {
                     design: design,
                     step: 2
                 });
@@ -220,15 +238,15 @@
                 var dragging, dragImage, startDrag, placeHolder, topList;
                 var _cleanUp = function() {
                         if (dragging) {
-                            dragging.removeClass('bs-none');
+                        	_dom.removeClass(dragging, 'bs-none');
                             dragging = null;
                         }
                         if (placeHolder) {
-                            placeHolder.remove();
+                        	_dom.remove(placeHolder);
                             placeHolder = null;
                         }
                         if (dragImage) {
-                            dragImage.remove()
+                            _dom.remove(dragImage)
                             dragImage = null;
                         }
                         topList = null;
@@ -237,15 +255,16 @@
                     },
                     _performDrop = function(td) {
                         console.log("Drop event");
-                        if (td && td.isLayout) {
-                            if (td.layout == td.dst) return;
+                        var root = $element.get(0);
+                        if (td) {
+                            if (td.data == td.dst) return;
                             var ni, oi, op,
                                 np = td.dst,
-                                moved = td.layout;
-                            var $e = _findElement($element, moved.$id),
-                                $p = _findElement($element, np.$idDesign),
-                                $c;
-                            if (moved.$parentId == np) {
+                                moved = td.data;
+                            var e = _dom.find(root, moved.$id),
+                                p = _dom.find(root, np.$idDesign),
+                                c;
+                            if (moved.$parentId == np.$id) {
                                 // same parent
                                 op = td.dst;
                                 oi = op.$items.indexOf(moved);
@@ -260,33 +279,35 @@
                             if (oi >= 0) op.$items.splice(oi, 1);
                             np.$items.splice(ni, 0, moved);
                             if (!td.isNew) {
-                                if (oi >= 0) $e.detach();
+                                if (oi >= 0) e = _dom.detach(e);
                                 if (ni == (np.$items.length - 1))
-                                    $p.append($e);
+                                    _dom.append(p, e);
                                 else {
-                                    $c = _findElement($element, np.$items[ni + 1].$id);
-                                    $c.before($e);
+                                    c = _dom.find(root, np.$items[ni + 1].$id);
+                                    _dom.before(c, e);
                                 }
 
-                                var toUpdate = [moved, op];
+                                var toUpdate = [op];
+                                if (td.isLayout) 
+                                	toUpdate.push(moved);
                                 if (np != op) toUpdate.push(np);
                                 // setevents
                                 _removeEvents($element, layout, design);
                                 _setEvents($element, layout, design);
                                 //update css 
                                 toUpdate.forEach(function(item) {
-                                    _updateCss(item, $element, layout, design);
+                                    _updateCss(item, root, layout, design);
                                 });
                                 return;
                             } else {
-                                layout.check(moved, np);
+                            	layout.check(moved, np);
                             }
                             layout.render(null, true);
                         }
                     };
                 $element.on('click', function(event) {
-                    var id = _event2Id(event, $element, layout);
-                    if (_isRemoveButton(event, $element)) {
+                    var id = _event2Id(event, $element.get(0), layout);
+                    if (_isRemoveButton(event, $element.get(0))) {
                     	layout.removeLayout(id);	
                     	return;	
                     }
@@ -294,24 +315,32 @@
                 });
                 $element.find('div[draggable="true"]').on('dragstart', function(event) {
                     event.stopPropagation();
-                    var l = layout.getLayoutById($(this).attr('data-layout'));
+                    var isField = false, isWidget=false;
+                    var l = layout.getLayoutById(this.getAttribute('data-layout'));
+                    if (!l) {
+                    	l = layout.getFieldById(this.getAttribute('data-render'));
+                    	isField = true;
+                    	isWidget = (l.$config != null);
+                    }
                     if (!l) {
                         event.preventDefault();
                         return false;
                     } else {
-                        var dt = (event.originalEvent ? event.originalEvent.dataTransfer : event.dataTransfer);
+                        var dt = _event(event).dataTransfer;
                         dt.effectAllowed = 'move';
                         dt.setData('Text', 'data');
-                        if (dt.setDragImage) {
+                        if (!isField && dt.setDragImage) {
                             dragImage = _createDragImage(true);
-                            dt.setDragImage(dragImage.get(0), 0, 0);
+                            dt.setDragImage(dragImage, 0, 0);
                         }
                         $l.utils.setDragData({
-                            layout: l,
-                            isLayout: true,
+                            data: l,
+                            isLayout: !isField,
+                            isField: isField,
+                            isWidget: isWidget,
                             isNew: false
                         });
-                        dragging = _findElement($element, l.$idDrag);
+                        dragging = _dom.find($element.get(0), l.$idDrag);
                         startDrag = true;
                     }
                 }).add($element).on('dragend', function(event) {
@@ -323,13 +352,13 @@
                     return false;
                 });
                 $element.find('.drop-layouts-zone, .drop-fields-zone').add($element).on('dragover dragenter drop', function(event) {
-                    var $t = $(this),
+                    var t = this,  
                         td = $l.utils.getDragData(),
-                    	e = event.originalEvent ? event.originalEvent : event,
+                    	e =  _event(event),
                     	dt = e.dataTransfer;
                     event.stopPropagation();
-					if (!td || (!td.isLayout && !$t.hasClass('drop-fields-zone')) || 
-                    	(td.isLayout && !$t.hasClass('drop-layouts-zone'))){
+					if (!td || (!td.isLayout && !_dom.hasClass(t, 'drop-fields-zone')) || 
+                    	(td.isLayout && !_dom.hasClass(t,'drop-layouts-zone'))){
 						dt.effectAllowed = 'none';
                         return true;                    	
                     }
@@ -337,13 +366,13 @@
                     if (event.type == 'drop') {
                         console.log("drop");
                         event.preventDefault();
-                        var dst = layout.getLayoutById($t.attr('data-layout'));
-                        var dstLevel = $t.attr('data-level');
+                        var dst = layout.getLayoutById(t.getAttribute('data-layout'));
+                        var dstLevel = t.getAttribute('data-level');
                         if (dst) {
                             td = $l.utils.getDragData();
                             td.dst = dst;
                             td.dstLevel = dstLevel;
-                            td.indexInParent = _indexInParent($t.get(0), placeHolder.get(0), dragging ? dragging.get(0) : null);
+                            td.indexInParent = _indexInParent(t, placeHolder, dragging, td.isLayout);
                             $l.utils.setDragData(td);
                             _cleanUp();
                             _performDrop(td);
@@ -357,52 +386,47 @@
                         if (!dragging) return
                         startDrag = false;
                         if (!td.isNew) {
-                            placeHolder = _createPlaceHolderOnStart(dragging, placeHolder);
-                            dragging.addClass('bs-none');
+                            placeHolder = _createPlaceHolderOnStart(dragging, placeHolder, td.isLayout, td.isField, td.isWidget);
+                            _dom.addClass(dragging, 'bs-none');
                             event.preventDefault();
                             return false
                         }
                     }
+                    var p = layout.getLayoutById(t.getAttribute('data-layout'));
+                    var level = t.getAttribute('data-level');
+
                     if (!placeHolder) {
                         if (!td.isNew) return true;
-                        if (td.isLayout) {
-                            topList = _createTopList($t, (dragging ? dragging.get(0) : null), (placeHolder ? placeHolder.get(0) : 0));
-                            var iph = _newIndex(topList, e.pageY);
-                            placeHolder = _createEmptyPlaceHolderOnStart(placeHolder);
-                            var php = layout.getLayoutById($t.attr('data-layout'));
-                            var phplevel = $t.attr('data-level');
-                            _appendPlaceHolder($t, topList, iph, placeHolder, php, phplevel);
-                            topList = null;
-                            event.preventDefault();
-                            return false;
+                        if (!_accceptNewChild(p, td)) {
+                        	dt.effectAllowed = 'none';
+	                    	return true;                        	
                         }
-                    }
-                    if (td.isLayout) {
-                        if (event.type == 'dragenter') topList = null;
-                        if (dragging && (dragging.get(0) == $t.get(0))) {
-                            dt.effectAllowed = 'none';
-                            return true;
-                        }
-                        var p = layout.getLayoutById($t.attr('data-layout'));
-                        var level = $t.attr('data-level');
-
-                        if (!l.utils.canDropChild(td.layout, p, $t.attr('data-level'))) {
-                            dt.effectAllowed = 'none';
-                            return true;
-                        }
-                        if (!topList)
-                            topList = _createTopList($t, (dragging ? dragging.get(0) : null), (placeHolder ? placeHolder.get(0) : 0));
-
-                        var ii = _newIndex(topList, e.pageY);
-                        if (_appendPlaceHolder($t, topList, ii, placeHolder, p, level)) {
-                            topList = null;
-                        }
+                    	topList = _createTopList(t, dragging, placeHolder);
+                        var iph = _newIndex(topList, e.pageY);
+                        placeHolder = _createEmptyPlaceHolderOnStart(placeHolder, td.isLayout, td.isField, td.isWidget);
+                        _appendPlaceHolder(t, topList, iph, placeHolder, p, level);
+                        topList = null;
                         event.preventDefault();
                         return false;
                     }
+                    if (event.type == 'dragenter') topList = null;
+                    if (dragging == t) {
+                        dt.effectAllowed = 'none';
+                        return true;
+                    }
+                    if (!l.utils.canDropChild(td.data, p, level)) {
+                        dt.effectAllowed = 'none';
+                        return true;
+                    }
+                    if (!topList)
+                        topList = _createTopList(t, dragging, placeHolder);
+
+                    var ii = _newIndex(topList, e.pageY);
+                    if (_appendPlaceHolder(t, topList, ii, placeHolder, p, level)) {
+                        topList = null;
+                    }
                     event.preventDefault();
-                    dt.effectAllowed = 'none';
-                    return true;
+                    return false;
                 });
             }
 
@@ -412,7 +436,8 @@
             this.design = true;
             this.showPreview = true;
             this.map = {};
-            l.utils.check(data, this.map);
+            this.mapFields = {};
+            l.utils.check(data, null, this.map, this.mapFields);
             this.data = data;
 
             $l.utils.addListener('onToolBoxDragend', this, function() {
@@ -424,7 +449,7 @@
         _methods = {
             renderLayout: function(layout) {
                 var that = this;
-                return $(l.toHtml(layout, null, null, {
+                return $(l.toHtml(layout, null, {
                     design: that.design
                 }));
             },
@@ -473,7 +498,7 @@
 
             },
             check: function(layout, parent) {
-                l.utils.check(layout, this.map, parent);
+            	l.utils.check(layout, parent, this.map, this.mapFields);
             },
             toString: function(layout) {
                 var o = $.extend(true, {}, JSON.parse(JSON.stringify(layout || this.data)));
@@ -491,7 +516,7 @@
             	var i = p.$items.indexOf(d);
             	p.$items.splice(i, 1);
             	delete that.map[d.$id];
-            	l.utils.afterRemoveChild(p, this.map);
+            	l.utils.afterRemoveChild(p, this.map, this.mapFields);
             	that.render(null, true);
 
             },
@@ -526,6 +551,11 @@
                 if (!id) return null;
                 var that = this;
                 return that.map[id];
+            },
+            getFieldById: function(id) {
+                if (!id) return null;
+                var that = this;
+                return that.mapFields[id];            
             }
         };
     $.extend(_layout.prototype, _methods);

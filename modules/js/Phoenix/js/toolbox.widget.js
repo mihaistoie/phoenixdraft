@@ -12,11 +12,19 @@
                     var dt = (event.originalEvent ? event.originalEvent.dataTransfer : event.dataTransfer);
                     dt.effectAllowed = 'move';
                     dt.setData('Text', 'Data');
-                    $l.utils.setDragData({
-                        isLayout: (l.data.$type == "layout"),
-                        isNew: true,
-                        layout: $.extend(true, {}, l.data.data)
-                    });
+                    var td = {isNew: true, data: $.extend(true, {}, l.data.data)};
+                    switch (l.data.$type) {
+                        case "layout":
+                            td.isLayout = true;
+                            break;
+                        case "field":
+                            td.isField = true;
+                            break;
+                        case "widget":
+                            td.isWidget = true;
+                            break;
+                    }
+                    $l.utils.setDragData(td);
                 }
             }).on('dragend', function(event) {
                 //end of the drag

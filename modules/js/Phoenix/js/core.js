@@ -53,7 +53,37 @@ var Phoenix = (function() {
                     _rmvlistener(_eventListeners[evn]);
                 });
             }
-        };
+        }, 
+        _find = function(parent, id) {
+    		if (parent) {
+    			if (parent.id == id) return parent;
+    			return parent.querySelector('#'+id);
+    		}
+    		return document.getElementById(id);
+
+    	},
+    	_addClass = function(element, className) {
+    		element.classList.add(className);
+    	},
+    	_removeClass = function(element, className) {
+    		element.classList.remove(className);
+    	},
+    	_hasClass = function(element, className) {
+    		return element.classList.contains(className);
+    	},
+    	_remove = function(element) {
+   			element.parentNode.removeChild(element);
+    	},
+    	_detach = function(element) {
+    		return element.parentNode.removeChild(element);
+    	},
+    	_append = function(parent, element) {
+    		parent.appendChild(element); 
+    	},
+    	_before = function(child, element) {
+    		child.parentNode.insertBefore(element, child);
+    	};
+
     phoenix.utils = {
         allocUuid: uuid,
         allocID: allocID,
@@ -64,14 +94,14 @@ var Phoenix = (function() {
         rmvListener: _unregListener
     };
     phoenix.dom = {
-    	find: function(parent, id) {
-    		if (parent) {
-    			if (parent.id == id) return parent;
-    			return parent.querySelector('#'+id);
-    		}
-    		return document.getElementById(id);
-
-    	}
+    	find: _find,
+    	addClass: _addClass,
+    	removeClass: _removeClass,
+    	hasClass: _hasClass,
+    	before: _before,
+    	append: _append,
+    	remove: _remove,
+    	detach: _detach
     }
     return phoenix;
 })();
