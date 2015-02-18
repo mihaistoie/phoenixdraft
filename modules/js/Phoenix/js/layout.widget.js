@@ -35,6 +35,36 @@
         _event = function(event) {
             return event.originalEvent ? event.originalEvent : event;
         },
+        _cleanCopy = function(data, onlySelf) {
+            if (!data) return null;
+            var restoreMap, map, fields, items;
+            if (data.map) {
+                restoreMap = true;
+                map = data.map;
+                data.map = null;
+                fields = data.fields;
+                data.fields = null;
+            }
+            if (onlySelf) {
+                items = data.$items;
+                if (items) data.$items = []
+            }
+            var o = $.extend(true, {}, data);
+            if (restoreMap) {
+                data.map = map;
+                data.fields = fields;
+                delete o.fields;
+                delete o.map;
+            }
+            if (onlySelf) 
+                data.$items = items;
+
+            if (o.$type) {
+                l.utils.clearMeta(o, !onlySelf);
+                if (onlySelf) delete o.$items;
+            }
+            return o;
+        },            
         _createTopList = function(p, exclude, placeHolder) {
             var res = [];
             var childs = p.childNodes;
@@ -137,7 +167,6 @@
                 _dom.remove(placeHolder);
             placeHolder = document.createElement('div');
             placeHolder.className = 'container-fluid no-x-padding drop-layouts-zone drop-fields-zone design drop-target' + (isLayout ? "" : " field") + (isWidget ? " widget" : "");
-            console.log(isWidget);
             return placeHolder;
         },
 
@@ -150,7 +179,7 @@
         _findSelected = function(maps) {
             var j = maps.length;
             while (j--) {
-            	var map = maps[j];
+                var map = maps[j];
                 var ids = Object.keys(map);
                 var i = ids.length;
                 while (i--) {
@@ -170,12 +199,6 @@
             else
                 _dom.removeClass(e, 'selected');
         },
-        _notifySelectedChanged = function(layout) {
-            $l.utils.emit("SelectedChanged", {
-                type: "layout",
-                data: layout
-            });
-        },
         _onSelectedChanged = function(element, data, notify) {
             if (data) {
                 var p = _dom.find(element, data.$idDrag);
@@ -194,9 +217,9 @@
                 }
             }
             if (notify) {
-                $l.utils.emit("SelectedChanged", {
-                    type: data ? (data.$type ? "layout" : "field"): null,
-                    data: data
+                $l.ipc.emit("SelectedChanged", {
+                    type: data ? (data.$type ? "layout" : (data.$config ? "widget": "field")) : null,
+                    data: _cleanCopy(data, true)
                 });
             }
         },
@@ -261,10 +284,9 @@
                         }
                         topList = null;
                         startDrag = false;
-                        $l.utils.setDragData(null);
+                        $l.drag.setData(null);
                     },
                     _performDrop = function(td) {
-                        console.log("Drop event");
                         var root = $element.get(0);
                         if (td) {
                             if (td.data == td.dst) return;
@@ -312,7 +334,7 @@
                             } else {
                                 layout.check(moved, np);
                             }
-                            layout.render(null, true);
+                            layout.render();
                         }
                     };
                 $element.on('click', function(event) {
@@ -344,7 +366,7 @@
                             dragImage = _createDragImage(true);
                             dt.setDragImage(dragImage, 0, 0);
                         }
-                        $l.utils.setDragData({
+                        $l.drag.setData({
                             data: l,
                             isLayout: !isField,
                             isField: isField,
@@ -356,7 +378,6 @@
                     }
                 }).add($element).on('dragend', function(event) {
                     //end of the drag
-                    console.log("dragend");
                     event.preventDefault();
                     event.stopPropagation();
                     _cleanUp();
@@ -364,7 +385,7 @@
                 });
                 $element.find('.drop-layouts-zone, .drop-fields-zone').add($element).on('dragover dragenter drop', function(event) {
                     var t = this,
-                        td = $l.utils.getDragData(),
+                        td = $l.drag.getData(),
                         e = _event(event),
                         dt = e.dataTransfer;
                     event.stopPropagation();
@@ -375,16 +396,15 @@
                     }
 
                     if (event.type == 'drop') {
-                        console.log("drop");
                         event.preventDefault();
                         var dst = layout.getLayoutById(t.getAttribute('data-layout'));
                         var dstLevel = t.getAttribute('data-level');
                         if (dst) {
-                            td = $l.utils.getDragData();
+                            td = $l.drag.getData();
                             td.dst = dst;
                             td.dstLevel = dstLevel;
                             td.indexInParent = _indexInParent(t, placeHolder, dragging, td.isLayout);
-                            $l.utils.setDragData(td);
+                            $l.drag.setData(td);
                             _cleanUp();
                             _performDrop(td);
                             return false;
@@ -442,84 +462,102 @@
             }
 
         },
-        _layout = function(data) {
+        _layout = function(data, options) {
+            //Layout
             this.$element = null;
-            this.design = true;
-            this.showPreview = true;
+            //Mode design
+            this.$check = null;
+            //Content = this.$check + this.$element;
+            this.$content = null;
+
+            this.options = options || {};
+            this.options.context = this.options.context || "widget";
             this.map = {};
             this.mapFields = {};
+            data = data || {};
             l.utils.check(data, null, this.map, this.mapFields);
             this.data = data;
+            data.map = this.map;
+            data.fields = this.mapFields;
 
-            $l.utils.addListener('onToolBoxDragend', this, function() {
+            $l.ipc.listen('onToolBoxDragend', function() {
                 if (this.$element) {
                     this.$element.trigger('dragend');
                 }
-            });
+            }, this);
         },
         _methods = {
-            renderLayout: function(layout) {
+            _renderLayout: function(layout) {
                 var that = this;
                 return $(l.toHtml(layout, null, {
-                    design: that.design
+                    design: that.options.design, context: that.options.context
                 }));
             },
-            render: function($parent, force) {
+            render: function($parent) {
                 var that = this;
-                if (force && that.$element) {
-                    $parent = $parent || that.$element.parent();
-                    _removeEvents(that.$element, that, true);
-                    that.$element.remove();
-                    that.$element = null;
-                }
-                if (force && that.$check) {
-                    _removeDesignModeEvents(that.$check);
-                    that.$check.remove();
-                    that.$check = null;
-                }
 
-                if (this.showPreview) {
-                    that.$check = $(l.authModeHtml(this.design));
-                    if ($parent)
-                        $parent.append(that.$check);
-                    _setDesignModeEvents(that.$check, that, that.design);
-
+                if (that.$content) {
+                    if (that.$element) {
+                        _removeEvents(that.$element, that, true);
+                        if (that.options.beforeRemove)
+                            that.options.beforeRemove(that.$element);
+                        that.$element.remove();
+                        that.$element = null;
+                    }
+                    if (that.$check) {
+                        _removeDesignModeEvents(that.$check);
+                        that.$check.remove();
+                        that.$check = null;
+                    }
+                } else {
+                    that.$content = $('<div></div>');
+                }
+                if (that.options.showPreview && !that.$check) {
+                    that.$check = $(l.authModeHtml(that.options.design));
+                    that.$content.append(that.$check);
+                    _setDesignModeEvents(that.$check, that, that.options.design);
                 }
                 if (!that.$element) {
-                    that.$element = that.renderLayout(that.data);
-                    if ($parent)
-                        $parent.append(that.$element);
-                    _setEvents(that.$element, that, that.design);
+                    that.$element = that._renderLayout(that.data);
+                    that.$content.append(that.$element);
+                    _setEvents(that.$element, that, that.options.design);
                     var o = _findSelected([that.map, that.mapFields]);
-                    if (that.design)
+                    if (that.options.design)
                         _onSelectedChanged(that.$element.get(0), o, true);
                 }
+                if ($parent) {
+                    if (that.options.beforeAdd)
+                        that.options.beforeAdd(that.$element);
+                    if (that.options.replaceParent)
+                        $parent.replaceWith(that.$content);
+                    else
+                        $parent.append(that.$content);
+                }
+                return that.$content;
             },
-            _destroy: function() {
+            destroy: function() {
                 var that = this;
                 if (that.$element) {
-                    _removeEvents(that.$element, that, that.design)
+                    _removeEvents(that.$element, that, that.options.design)
                     that.$element = null;
                 }
                 if (that.$check) {
                     _removeDesignModeEvents(that.$check);
                     that.$check = null;
                 }
-                $l.utils.rmvListener(that);
+                $l.ipc.unlisten(that);
 
             },
             check: function(layout, parent) {
                 l.utils.check(layout, parent, this.map, this.mapFields);
             },
             toString: function(layout) {
-                var o = $.extend(true, {}, JSON.parse(JSON.stringify(layout || this.data)));
-
-                l.utils.clearMeta(o);
+                var o = _cleanCopy(layout || this.data, false);
                 return JSON.stringify(o, 2)
             },
             removeChild: function(id) {
-            	var that = this;
-                if (!id || !that.design) return;
+                var that = this;
+                if (!id || !that.options.design) return;
                 var d = that.map[id] || that.mapFields[id];
                 if (!d) return;
                 var p = that.map[d.$parentId];
@@ -528,30 +566,30 @@
                 p.$items.splice(i, 1);
                 l.utils.clearMaps(d, this.map, this.mapFields);
                 l.utils.afterRemoveChild(p, this.map, this.mapFields);
-                that.render(null, true);
+                that.render();
 
             },
             setDesignMode: function(value) {
                 var that = this;
-                if (that.design != value) {
-                    that.design = value;
-                    that.render(null, true);
+                if (that.options.design != value) {
+                    that.options.design = value;
+                    that.render();
                 }
             },
             select: function(id) {
                 var that = this;
                 var $e = that.$element;
-                if (!id || !that.design) return;
+                if (!id || !that.options.design) return;
                 var o = _findSelected([that.map, that.mapFields]);
                 if (o) {
                     o.selected = false;
                     _showSelected($e, o);
                     _onSelectedChanged($e.get(0), o, false);
-	                if (o.$id == id) {
-	                    _onSelectedChanged($e.get(0), null, true);
-	                    return;
-	                }
-                } 
+                    if (o.$id == id) {
+                        _onSelectedChanged($e.get(0), null, true);
+                        return;
+                    }
+                }
                 var d = (that.map[id] ? that.map[id] : that.mapFields[id]);
                 d.selected = true;
                 _showSelected($e, d);
@@ -569,7 +607,6 @@
             }
         };
     $.extend(_layout.prototype, _methods);
-
     $l.ui = $l.ui || {};
     $l.ui.Layout = _layout;
 

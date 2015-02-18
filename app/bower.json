@@ -1,0 +1,12 @@
+{
+    "name": "phoenix-seed",
+    "description": "A starter project for Phoenix",
+    "version": "0.0.0",
+    "license": "MIT",
+    "private": true,
+    "dependencies": {
+        "angular": "1.4.x",
+        "angular-route": "1.4.x",
+        "es6-promise": "latest"
+    }
+}

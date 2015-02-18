@@ -34,7 +34,7 @@ $(function() {
 	};
 				
 
-	var cl = new Phoenix.ui.Layout(layout);
+	var cl = new Phoenix.ui.Layout(layout, {showPreview: true});
 	cl.render($('#yyy'));
 	cl = new Phoenix.ui.ToolBox(tbData);
 	cl.render($('#zzz'));

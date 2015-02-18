@@ -12,7 +12,10 @@
                     var dt = (event.originalEvent ? event.originalEvent.dataTransfer : event.dataTransfer);
                     dt.effectAllowed = 'move';
                     dt.setData('Text', 'Data');
-                    var td = {isNew: true, data: $.extend(true, {}, l.data.data)};
+                    var td = {
+                        isNew: true,
+                        data: $.extend(true, {}, l.data.data)
+                    };
                     switch (l.data.$type) {
                         case "layout":
                             td.isLayout = true;
@@ -24,20 +27,19 @@
                             td.isWidget = true;
                             break;
                     }
-                    $l.utils.setDragData(td);
+                    $l.drag.setData(td);
                 }
             }).on('dragend', function(event) {
                 //end of the drag
-                console.log('dragend - tool box');
-                $l.utils.emit('ToolBoxDragend')
-                $l.utils.setDragData(null);
+                $l.ipc.emit('ToolBoxDragend')
+                $l.drag.setData(null);
                 event.preventDefault();
                 event.stopPropagation();
                 return false;
 
             });
         },
-      	_rmvEvents = function($element, toolBox) {
+        _rmvEvents = function($element, toolBox) {
             $element.find('li[draggable="true"]').off('dragstart dragend');
         };
 

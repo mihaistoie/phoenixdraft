@@ -1,0 +1,14 @@
+{
+		"$type": "block",
+		"$items": [
+			{"$items": [
+					{"$type": "block"}, 
+					{"$type":"row", "$items": [{}, {"$items":[{"$bind":"text"}]}]}
+				]
+			},
+			{"$type":"row", "$items": [{}, {}, {}]},
+			{"$type": "panel"}, 
+			{"$type": "block"}
+			
+		]
+	}
