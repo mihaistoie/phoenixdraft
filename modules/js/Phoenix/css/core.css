@@ -1,32 +1,26 @@
 .no-y-padding {
-	padding-top: 0px;
-	padding-bottom: 0px;
+  padding-top: 0px;
+  padding-bottom: 0px;
 }
-
 .no-x-padding {
-	padding-left: 0px;
-	padding-right: 0px;
+  padding-left: 0px;
+  padding-right: 0px;
 }
 .no-start-padding {
-	padding-left: 0px;
+  padding-left: 0px;
 }
 .no-end-padding {
-	padding-right: 0px;
+  padding-right: 0px;
 }
-
-
-.bs-none { 
-	display: none;
+.bs-none {
+  display: none;
 }
-
-.bs-icon-space { 
-	margin-right: 5px;
+.bs-icon-space {
+  margin-right: 5px;
 }
-
-.bs-cursor-p { 
-	cursor: pointer;
+.bs-cursor-p {
+  cursor: pointer;
 }
-
-.bs-cursor-n { 
-	cursor: normal;
+.bs-cursor-n {
+  cursor: normal;
 }

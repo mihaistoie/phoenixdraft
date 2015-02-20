@@ -12,7 +12,7 @@
 	config(['$routeProvider', function($routeProvider) {
 	  $routeProvider.
 		  when('/:layoutId', {
-			template: '<layout model="model"></layout>',
+			template: '<layout model="model" authoring="false" preview="true"></layout>',
 			controller: 'PageCtrl',
 			resolve: {
 				model: _layoutResolver

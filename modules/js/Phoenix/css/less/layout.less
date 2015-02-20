@@ -1,3 +1,8 @@
+@import "phoenix.less";
+
+@field-margin: 8px;
+@design-remove-btn-size: 22px;
+
 /* Mode design */
 .design {
 	position:relative;
@@ -6,25 +11,24 @@
 	min-height: 40px;
 	border: 1px solid #aaa;
 }
+
+
 div.design.panel > div.panel-body {
 	min-height: 40px;
 }
 
-div.field {
-	margin: 0px;
-	margin-top: 8px;
-	margin-bottom: 8px;
+div.bs-island {
+	margin: @field-margin 0px @field-margin 0px;
+}
+div.design.bs-island {
+	margin: @field-margin;
+}
+
+
+div.bs-field {
 	min-height: 30px;
 	background-color: #fbf8e9;
 	border: 3px solid #f9f3d9;
-}
-
-div.design.field {
-	margin: 8px;
-}
-
-div.widget {
-	min-height: 100px;
 }
 
 .design.col {
@@ -38,7 +42,7 @@ div.drop-target, div.drop-target.selected {
 	background-color: yellow;
 	border-style: dashed;
 }
-div.drop-target.field, div.drop-target.selected.field {
+div.drop-target.bs-field, div.drop-target.selected.bs-field {
 	border-color: #D53537;
 	border-style: dashed;
 }
@@ -67,20 +71,19 @@ div.row.design-table > div {
 	vertical-align: top;
 	float: none !important;
 }
-
+// design remove button 
 .bs-rt-button {
 	position: absolute;
 	cursor: default;
-	font-size: 22px;
-	line-height: 22px;
+	font-size: @design-remove-btn-size;
+	line-height: @design-remove-btn-size;
 	right: 0px;
 	top: 0px;
-	width:  22px;
-	height: 22px;
-	margin-top: -11px; 
-	margin-right: -11px; 
+	width:  @design-remove-btn-size;
+	height: @design-remove-btn-size;
+	margin-top: -@design-remove-btn-size / 2; 
+	margin-right: -@design-remove-btn-size / 2; 
 	background-color: white;
-	border-radius: 11px;
+	border-radius: @design-remove-btn-size / 2;
 	color:red;
-
 }

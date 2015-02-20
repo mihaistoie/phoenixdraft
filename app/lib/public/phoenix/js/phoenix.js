@@ -85,7 +85,7 @@ var Phoenix = (function(local) {
             child.parentNode.insertBefore(element, child);
         },
         _get = function(url, headers) {
-            var _promise = local.Promise  || local.ES6Promise.Promise;
+            var _promise = local.Promise || local.ES6Promise.Promise;
             return new _promise(function(resolve, reject) {
                 $.ajax({
                         url: url
@@ -103,20 +103,46 @@ var Phoenix = (function(local) {
         _registerRender = function(context, name, handler) {
             _renders[context] = _renders[context] || {};
             _renders[context][name] = handler;
-        },        
+        },
         _getRender = function(context, name) {
-            if  (!_renders[context]) return null;
+            if (!_renders[context]) return null;
             return _renders[context][name];
+        },
+        _parseStyle = function(style, css) {
+            if (style) {
+                var a = style.split(" ");
+                a.forEach(function(e, index) {
+                    e = e.trim();
+                    if (e && (e.charAt(0) === "$"))
+                        e = 'bs-style-' + e.substring(1);
+                    css.push(e);
+                });
+            }
+        },
+        _text =  function(node, text) { node.textContent = text; },
+        entityMap = {
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': '&quot;',
+            "'": '&#39;',
+            "/": '&#x2F;'
+        },
+        _escapeHtml = function(value) {
+            return (value || '').replace(/[&<>"'\/]/g, function(s) {
+                return entityMap[s];
+            });
         };
 
     phoenix.render = {
-        register : _registerRender,
-        get : _registerRender
+        register: _registerRender, // function(context, name, handler)
+        get: _getRender // function(context, name)
     };
 
     phoenix.utils = {
         allocUuid: uuid,
-        allocID: allocID
+        allocID: allocID,
+        escapeHtml: _escapeHtml //function(value)
     };
     phoenix.drag = {
         setData: _setDragData,
@@ -136,11 +162,18 @@ var Phoenix = (function(local) {
         before: _before,
         append: _append,
         remove: _remove,
-        detach: _detach
+        detach: _detach,
+        text: _text // function(node, text)
+
     };
     phoenix.ajax = {
         get: _get
     };
+
+    phoenix.styles = {
+        parse: _parseStyle //function(style, css) {
+    };
+
     return phoenix;
 })(this);
 
@@ -151,6 +184,7 @@ this.Phoenix = Phoenix
 
     var ll = {
         AuthoringMode: 'Authoring Mode',
+        SaveLayout: 'Save',
         PanelTitle: 'Panel title',
         Html: '<p class="text-primary text-center">Block Html</p>'
     }
@@ -247,15 +281,7 @@ this.Phoenix = Phoenix
             return true;
         },
         _addStdThemes = function(layout, css) {
-            if (layout.$style) {
-                var a = layout.$style.split(" ");
-                a.forEach(function(e, index) {
-                    e = e.trim();
-                    if (e && (e.charAt(0) === "$"))
-                        e = 'bs-style-' + e.substring(1);
-                    css.push(e);
-                });
-            }
+            $l.styles.parse(layout.$style, css);
         },
         _css = function(layout, parent, options) {
             var css = [],
@@ -444,7 +470,7 @@ this.Phoenix = Phoenix
             html.push('>');
             html.push('<h4 class="panel-title"');
             html.push('>');
-            html.push(layout.$title);
+            html.push(utils.escapeHtml(layout.$title));
             html.push('</h4></div>');
             layout.$idStep2 = layout.$id + "_s2";
             layout.$idDesign = layout.$idStep2;
@@ -588,18 +614,19 @@ this.Phoenix = Phoenix
                 onElement(layout, parent, true, false);
             }
         },
-        _nullHtmlFieldRender = function(html, item, layout, model, locale, utils, design) {
-            html.push('<div class="field' + (design ? ' design' : '') + (item.$config ? ' widget"' : '"') + (item.selected ? ' selected"' : '"'));
-            if (design) html.push(' draggable="true"')
+        _nullHtmlFieldRender = function(html, item, layout, model, options) {
+            html.push('<div class="bs-island' + (options.design ? ' design' : '') + (item.$config ? ' bs-widget' : ' bs-field') + (item.selected ? ' selected"' : '"'));
+            if (options.design) html.push(' draggable="true"')
             html.push(' data-render="' + item.$id + '"');
             html.push(' id="' + item.$id + '"');
             html.push('></div>')
         },
+        _nullWidgetRender = function(html, item, layout, model, options) {
+            html.push('<div id="' + item.$id + '"></div>');
+        },
         _renderLayout = function(layout, model, html, locale, utils, options) {
-            var htmlFieldRender = _nullHtmlFieldRender;
-            if (!options.design) {
-
-            }
+            var wHtmlFieldRender = $l.render.get(options.context, "widget") || _nullWidgetRender;
+            var fHtmlFieldRender = $l.render.get(options.context, "field") || _nullHtmlFieldRender;
             _enumElements(layout, null, function(item, parent, isLayout, before) {
                 if (isLayout) {
                     var rb = _blockBefore;
@@ -628,11 +655,10 @@ this.Phoenix = Phoenix
                         ra(html, item, parent, model, locale, utils, options.design);
                     }
                 } else {
-                    if (htmlFieldRender) {
-                        htmlFieldRender(html, item, parent, model, locale, utils, options.design);
-
-                    }
-
+                    if (item.$config)
+                        wHtmlFieldRender(html, item, parent, model, options);
+                    else
+                        fHtmlFieldRender(html, item, parent, model, options);
                 }
             }, true);
         },
@@ -715,11 +741,12 @@ this.Phoenix = Phoenix
     };
 
     _l.utils.clearMaps = function(layout, map, mapFields) {
+            var fields = {};
             _enumElements(layout, null, function(item, parent, isLayout, before) {
                 if (before) {
                     if (isLayout)
                         delete map[item.$id];
-                    else
+                    else 
                         delete mapFields[item.$id];
                 }
             }, true);
@@ -807,7 +834,7 @@ this.Phoenix = Phoenix
                 delete o.fields;
                 delete o.map;
             }
-            if (onlySelf) 
+            if (onlySelf)
                 data.$items = items;
 
             if (o.$type) {
@@ -815,7 +842,7 @@ this.Phoenix = Phoenix
                 if (onlySelf) delete o.$items;
             }
             return o;
-        },            
+        },
         _createTopList = function(p, exclude, placeHolder) {
             var res = [];
             var childs = p.childNodes;
@@ -917,7 +944,7 @@ this.Phoenix = Phoenix
             if (placeHolder)
                 _dom.remove(placeHolder);
             placeHolder = document.createElement('div');
-            placeHolder.className = 'container-fluid no-x-padding drop-layouts-zone drop-fields-zone design drop-target' + (isLayout ? "" : " field") + (isWidget ? " widget" : "");
+            placeHolder.className = 'container-fluid no-x-padding drop-layouts-zone drop-fields-zone design drop-target' + (isField ? " bs-island bs-field" : "" ) + (isWidget ? " bs-island bs-widget" : "");
             return placeHolder;
         },
 
@@ -969,7 +996,7 @@ this.Phoenix = Phoenix
             }
             if (notify) {
                 $l.ipc.emit("SelectedChanged", {
-                    type: data ? (data.$type ? "layout" : (data.$config ? "widget": "field")) : null,
+                    type: data ? (data.$type ? "layout" : (data.$config ? "widget" : "field")) : null,
                     data: _cleanCopy(data, true)
                 });
             }
@@ -999,10 +1026,6 @@ this.Phoenix = Phoenix
                 layout.setDesignMode(this.checked);
             });
 
-        },
-        _accceptNewChild = function(p, td) {
-            if (td.isLayout) return true;
-            return (td.isField || td.isWidget);
         },
         _updateCss = function(item, element, layout, design) {
             var l1 = _dom.find(element, item.$id);
@@ -1099,12 +1122,15 @@ this.Phoenix = Phoenix
                 $element.find('div[draggable="true"]').on('dragstart', function(event) {
                     event.stopPropagation();
                     var isField = false,
+                        isLayout = true,
                         isWidget = false;
+
                     var l = layout.getLayoutById(this.getAttribute('data-layout'));
                     if (!l) {
                         l = layout.getFieldById(this.getAttribute('data-render'));
-                        isField = true;
                         isWidget = (l.$config != null);
+                        isField = !isWidget;
+                        isLayout = false;
                     }
                     if (!l) {
                         event.preventDefault();
@@ -1113,13 +1139,13 @@ this.Phoenix = Phoenix
                         var dt = _event(event).dataTransfer;
                         dt.effectAllowed = 'move';
                         dt.setData('Text', 'data');
-                        if (!isField && dt.setDragImage) {
+                        if (isLayout && dt.setDragImage) {
                             dragImage = _createDragImage(true);
                             dt.setDragImage(dragImage, 0, 0);
                         }
                         $l.drag.setData({
                             data: l,
-                            isLayout: !isField,
+                            isLayout: isLayout,
                             isField: isField,
                             isWidget: isWidget,
                             isNew: false
@@ -1179,7 +1205,7 @@ this.Phoenix = Phoenix
 
                     if (!placeHolder) {
                         if (!td.isNew) return true;
-                        if (!_accceptNewChild(p, td)) {
+                        if (!l.utils.canDropChild(td.data, p, level)) {
                             dt.effectAllowed = 'none';
                             return true;
                         }
@@ -1222,7 +1248,7 @@ this.Phoenix = Phoenix
             this.$content = null;
 
             this.options = options || {};
-            this.options.context = this.options.context || "widget";
+            this.options.context = this.options.context || "javascript";
             this.map = {};
             this.mapFields = {};
             data = data || {};
@@ -1230,6 +1256,7 @@ this.Phoenix = Phoenix
             this.data = data;
             data.map = this.map;
             data.fields = this.mapFields;
+            this.children = {};
 
             $l.ipc.listen('onToolBoxDragend', function() {
                 if (this.$element) {
@@ -1240,15 +1267,18 @@ this.Phoenix = Phoenix
         _methods = {
             _renderLayout: function(layout) {
                 var that = this;
-                return $(l.toHtml(layout, null, {
-                    design: that.options.design, context: that.options.context
+                var $e = $(l.toHtml(layout, null, {
+                    design: that.options.design,
+                    context: that.options.context
                 }));
+                that._renderChildren($e);
+                return $e;
             },
             render: function($parent) {
                 var that = this;
-
                 if (that.$content) {
                     if (that.$element) {
+                         that._clearChildren();
                         _removeEvents(that.$element, that, true);
                         if (that.options.beforeRemove)
                             that.options.beforeRemove(that.$element);
@@ -1270,6 +1300,8 @@ this.Phoenix = Phoenix
                 }
                 if (!that.$element) {
                     that.$element = that._renderLayout(that.data);
+                    if (that.options.beforeAdd)
+                        that.options.beforeAdd(that.$element);
                     that.$content.append(that.$element);
                     _setEvents(that.$element, that, that.options.design);
                     var o = _findSelected([that.map, that.mapFields]);
@@ -1277,8 +1309,6 @@ this.Phoenix = Phoenix
                         _onSelectedChanged(that.$element.get(0), o, true);
                 }
                 if ($parent) {
-                    if (that.options.beforeAdd)
-                        that.options.beforeAdd(that.$element);
                     if (that.options.replaceParent)
                         $parent.replaceWith(that.$content);
                     else
@@ -1286,8 +1316,35 @@ this.Phoenix = Phoenix
                 }
                 return that.$content;
             },
+            _renderChildren: function($e) {
+                var that = this;
+                var e = $e.get(0);
+                var wc = $l.render.get(that.options.context, "widget.control");
+                var fc = $l.render.get(that.options.context, "field.control");
+                if (wc || fc) {
+                    Object.keys(that.mapFields).forEach(function(fn){
+                        var fd = that.mapFields[fn];
+                        var _constructor =  fd.$config ? wc : fc;
+                        if (_constructor) {
+                           var p = new _constructor(fd, {context: that.options.context, design: that.options.design, replaceParent: true});
+                           p.render($(_dom.find(e, fd.$id)));
+                           that.children[fn] = p;
+                        }
+                        
+                    });
+                }
+            },
+            _clearChildren: function() {
+                var that = this;
+                var children = that.children; 
+                that.children = {};
+                Object.keys(children).forEach(function(v) {
+                    children[v].destroy();
+                });
+            },
             destroy: function() {
                 var that = this;
+                that._clearChildren();
                 if (that.$element) {
                     _removeEvents(that.$element, that, that.options.design)
                     that.$element = null;
@@ -1542,4 +1599,149 @@ this.Phoenix = Phoenix
     $l.ui = $l.ui || {};
     $l.ui.ToolBox = _toolBox;
 
+}(Phoenix, $));
+
+'use strict';
+(function($l) {
+    //Widget data
+    // {$config: {$title, $titleIsHidden, $border, $style, $height, data}}
+    var _widgetClass = function(data, options) {
+            var cfg = data.$config;
+            var css = ["bs-island bs-widget"];
+            $l.styles.parse(cfg.$style, css);
+            if (cfg.$border) css.push("border");
+            if (options.design) css.push("design");
+            if (data.$selected) css.push("selected");
+            return css.join(' ');
+        },
+        _beforeWidget = function(html, data, options) {
+            html.push('<div class="');
+            html.push(_widgetClass(data, options));
+            html.push('"');
+            if (options.design) html.push(' draggable="true"')
+            html.push(' data-render="' + data.$id + '"');
+            html.push(' id="' + data.$id + '"');
+            html.push('>');
+            _addTitle(html, data.$id, data.$config, options);
+            var contentRender = $l.render.get(options.context, "widget.content");
+            if (contentRender) {
+                contentRender(html, data.$config, options);
+            }
+
+        },
+        _addTitle = function(html, id, data, options) {
+            html.push('<h4 class="bs-widget-title" id="' + id + '_title">');
+            html.push($l.utils.escapeHtml(data.$title));
+            html.push('</h4>');
+        },
+        _afterWidget = function(html) {
+            html.push('</div>');
+        },
+        _renderWiget = function(html, data, parent, model, options) {
+            _beforeWidget(html, data, options);
+            _afterWidget(html);
+        };
+    $l.widget = {
+        toHtml: function(data, options, parent, model) {
+            var html = [];
+            _renderWiget(html, data, parent, model, options);
+            return html.join('');
+        }
+    }
+    return $l;
+}(Phoenix));
+
+'use strict';
+(function($l, $) {
+	var _widget = function(data, options) {
+			this.item = data || {};
+			if (!this.item.$id) this.item.$id = $l.utils.allocID();
+			this.data = data.$config || {};
+			data.$config.data =  data.$config.data  || {};
+			this.props = {};
+			this.props.data = data.$config.data;
+			this.options = options || {};
+			this.contentRender = null;
+			this._defineProps();
+		},
+		_methods = {
+			_dp: function(propertyName) {
+				var self = this;
+				Object.defineProperty(self.props, propertyName, {
+					get: function() {
+						return self.data[propertyName];
+					},
+					set: function(value) {
+						if (value != self.data[propertyName]) {
+							self.data[propertyName] = value;
+							self._notifyChange(propertyName);
+						}
+					},
+					enumerable: true
+
+				});''
+			},
+			_defineProps: function() {
+				var self = this;
+				self._dp("$title");
+				self._dp("$border");
+			},
+			_notifyChange: function(propertyName) {
+				var self = this;
+				switch (propertyName) {
+					case "$title":
+						self._updateTitle();
+						break;
+					case "$border":
+					case "$titleIsHidden":
+						self._updateCssClass();
+						break;
+				}
+
+
+			},
+			_updateTitle: function() {
+				var that = this;
+				if (that.$element) {
+					var t = $l.dom.find(that.$element.get(0),that.item.$id + "_title");
+					if (t) $l.dom.text(t, this.data.$title)
+				}
+
+			},
+			_updateCssClass: function() {
+				console.log("_updateCssClass");
+			},
+			render: function($parent) {
+				var that = this;
+				if (!that.$element) {
+					that.$element = $($l.widget.toHtml(that.item, that.options));
+					var cr = $l.render.get(this.options.context, "widget.content.control." + that.data.$type, _widget);
+					if (cr) {
+						that.contentRender = new cr(that.props, {context: that.options.context, replaceParent: false});
+						that.contentRender.render(that.$element);
+					} 
+				}
+				if ($parent) {
+					if (that.options.beforeAdd)
+						that.options.beforeAdd(that.$element);
+					if (that.options.replaceParent)
+						$parent.replaceWith(that.$element);
+					else
+						$parent.append(that.$element);
+				}
+				return that.$element;
+			},
+			destroy: function() {
+				var that = this;
+				if (that.contentRender) {
+					that.contentRender.destroy();
+					that.contentRender = null;
+				}
+				that.$element = null;
+			}
+		};
+	$.extend(_widget.prototype, _methods);
+	$l.ui = $l.ui || {};
+	$l.ui.Widget = _widget;
+	$l.render.register("javascript", "widget.control", _widget);
 }(Phoenix, $));

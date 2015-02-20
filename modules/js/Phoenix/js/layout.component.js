@@ -56,7 +56,7 @@
                 delete o.fields;
                 delete o.map;
             }
-            if (onlySelf) 
+            if (onlySelf)
                 data.$items = items;
 
             if (o.$type) {
@@ -64,7 +64,7 @@
                 if (onlySelf) delete o.$items;
             }
             return o;
-        },            
+        },
         _createTopList = function(p, exclude, placeHolder) {
             var res = [];
             var childs = p.childNodes;
@@ -166,7 +166,7 @@
             if (placeHolder)
                 _dom.remove(placeHolder);
             placeHolder = document.createElement('div');
-            placeHolder.className = 'container-fluid no-x-padding drop-layouts-zone drop-fields-zone design drop-target' + (isLayout ? "" : " field") + (isWidget ? " widget" : "");
+            placeHolder.className = 'container-fluid no-x-padding drop-layouts-zone drop-fields-zone design drop-target' + (isField ? " bs-island bs-field" : "" ) + (isWidget ? " bs-island bs-widget" : "");
             return placeHolder;
         },
 
@@ -218,7 +218,7 @@
             }
             if (notify) {
                 $l.ipc.emit("SelectedChanged", {
-                    type: data ? (data.$type ? "layout" : (data.$config ? "widget": "field")) : null,
+                    type: data ? (data.$type ? "layout" : (data.$config ? "widget" : "field")) : null,
                     data: _cleanCopy(data, true)
                 });
             }
@@ -248,10 +248,6 @@
                 layout.setDesignMode(this.checked);
             });
 
-        },
-        _accceptNewChild = function(p, td) {
-            if (td.isLayout) return true;
-            return (td.isField || td.isWidget);
         },
         _updateCss = function(item, element, layout, design) {
             var l1 = _dom.find(element, item.$id);
@@ -348,12 +344,15 @@
                 $element.find('div[draggable="true"]').on('dragstart', function(event) {
                     event.stopPropagation();
                     var isField = false,
+                        isLayout = true,
                         isWidget = false;
+
                     var l = layout.getLayoutById(this.getAttribute('data-layout'));
                     if (!l) {
                         l = layout.getFieldById(this.getAttribute('data-render'));
-                        isField = true;
                         isWidget = (l.$config != null);
+                        isField = !isWidget;
+                        isLayout = false;
                     }
                     if (!l) {
                         event.preventDefault();
@@ -362,13 +361,13 @@
                         var dt = _event(event).dataTransfer;
                         dt.effectAllowed = 'move';
                         dt.setData('Text', 'data');
-                        if (!isField && dt.setDragImage) {
+                        if (isLayout && dt.setDragImage) {
                             dragImage = _createDragImage(true);
                             dt.setDragImage(dragImage, 0, 0);
                         }
                         $l.drag.setData({
                             data: l,
-                            isLayout: !isField,
+                            isLayout: isLayout,
                             isField: isField,
                             isWidget: isWidget,
                             isNew: false
@@ -428,7 +427,7 @@
 
                     if (!placeHolder) {
                         if (!td.isNew) return true;
-                        if (!_accceptNewChild(p, td)) {
+                        if (!l.utils.canDropChild(td.data, p, level)) {
                             dt.effectAllowed = 'none';
                             return true;
                         }
@@ -471,7 +470,7 @@
             this.$content = null;
 
             this.options = options || {};
-            this.options.context = this.options.context || "widget";
+            this.options.context = this.options.context || "javascript";
             this.map = {};
             this.mapFields = {};
             data = data || {};
@@ -479,6 +478,7 @@
             this.data = data;
             data.map = this.map;
             data.fields = this.mapFields;
+            this.children = {};
 
             $l.ipc.listen('onToolBoxDragend', function() {
                 if (this.$element) {
@@ -489,15 +489,18 @@
         _methods = {
             _renderLayout: function(layout) {
                 var that = this;
-                return $(l.toHtml(layout, null, {
-                    design: that.options.design, context: that.options.context
+                var $e = $(l.toHtml(layout, null, {
+                    design: that.options.design,
+                    context: that.options.context
                 }));
+                that._renderChildren($e);
+                return $e;
             },
             render: function($parent) {
                 var that = this;
-
                 if (that.$content) {
                     if (that.$element) {
+                         that._clearChildren();
                         _removeEvents(that.$element, that, true);
                         if (that.options.beforeRemove)
                             that.options.beforeRemove(that.$element);
@@ -519,6 +522,8 @@
                 }
                 if (!that.$element) {
                     that.$element = that._renderLayout(that.data);
+                    if (that.options.beforeAdd)
+                        that.options.beforeAdd(that.$element);
                     that.$content.append(that.$element);
                     _setEvents(that.$element, that, that.options.design);
                     var o = _findSelected([that.map, that.mapFields]);
@@ -526,8 +531,6 @@
                         _onSelectedChanged(that.$element.get(0), o, true);
                 }
                 if ($parent) {
-                    if (that.options.beforeAdd)
-                        that.options.beforeAdd(that.$element);
                     if (that.options.replaceParent)
                         $parent.replaceWith(that.$content);
                     else
@@ -535,8 +538,35 @@
                 }
                 return that.$content;
             },
+            _renderChildren: function($e) {
+                var that = this;
+                var e = $e.get(0);
+                var wc = $l.render.get(that.options.context, "widget.control");
+                var fc = $l.render.get(that.options.context, "field.control");
+                if (wc || fc) {
+                    Object.keys(that.mapFields).forEach(function(fn){
+                        var fd = that.mapFields[fn];
+                        var _constructor =  fd.$config ? wc : fc;
+                        if (_constructor) {
+                           var p = new _constructor(fd, {context: that.options.context, design: that.options.design, replaceParent: true});
+                           p.render($(_dom.find(e, fd.$id)));
+                           that.children[fn] = p;
+                        }
+                        
+                    });
+                }
+            },
+            _clearChildren: function() {
+                var that = this;
+                var children = that.children; 
+                that.children = {};
+                Object.keys(children).forEach(function(v) {
+                    children[v].destroy();
+                });
+            },
             destroy: function() {
                 var that = this;
+                that._clearChildren();
                 if (that.$element) {
                     _removeEvents(that.$element, that, that.options.design)
                     that.$element = null;

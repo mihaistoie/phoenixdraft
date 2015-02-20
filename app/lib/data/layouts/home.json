@@ -3,7 +3,7 @@
 		"$items": [
 			{"$items": [
 					{"$type": "block"}, 
-					{"$type":"row", "$items": [{}, {"$items":[{"$bind":"text"}]}]}
+					{"$type":"row", "$items": [{}, {"$items":[{"$config":{"$title": "Widget title ", "$type": "test"}}]}]}
 				]
 			},
 			{"$type":"row", "$items": [{}, {}, {}]},

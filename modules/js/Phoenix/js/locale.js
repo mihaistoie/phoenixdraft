@@ -3,6 +3,7 @@
 
     var ll = {
         AuthoringMode: 'Authoring Mode',
+        SaveLayout: 'Save',
         PanelTitle: 'Panel title',
         Html: '<p class="text-primary text-center">Block Html</p>'
     }

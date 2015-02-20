@@ -1,0 +1,24 @@
+@import "phoenix.less";
+@widget-title-padding: 5px;
+@widget-title-border-bottom: 2px;
+
+div.bs-widget.design {
+	min-height: 80px;
+}
+.bs-widget-title {
+	color: @base-color-1;
+	padding: 0px @widget-title-padding 0px @widget-title-padding;
+	margin:0px;
+	border-bottom: @widget-title-border-bottom solid @base-color-1;
+}
+
+.b {
+	color: red;
+}
+
+.a {
+  &:extend(.b);
+  background-color: red;
+}
+
+

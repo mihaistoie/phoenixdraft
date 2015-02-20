@@ -85,7 +85,7 @@ var Phoenix = (function(local) {
             child.parentNode.insertBefore(element, child);
         },
         _get = function(url, headers) {
-            var _promise = local.Promise  || local.ES6Promise.Promise;
+            var _promise = local.Promise || local.ES6Promise.Promise;
             return new _promise(function(resolve, reject) {
                 $.ajax({
                         url: url
@@ -103,20 +103,46 @@ var Phoenix = (function(local) {
         _registerRender = function(context, name, handler) {
             _renders[context] = _renders[context] || {};
             _renders[context][name] = handler;
-        },        
+        },
         _getRender = function(context, name) {
-            if  (!_renders[context]) return null;
+            if (!_renders[context]) return null;
             return _renders[context][name];
+        },
+        _parseStyle = function(style, css) {
+            if (style) {
+                var a = style.split(" ");
+                a.forEach(function(e, index) {
+                    e = e.trim();
+                    if (e && (e.charAt(0) === "$"))
+                        e = 'bs-style-' + e.substring(1);
+                    css.push(e);
+                });
+            }
+        },
+        _text =  function(node, text) { node.textContent = text; },
+        entityMap = {
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': '&quot;',
+            "'": '&#39;',
+            "/": '&#x2F;'
+        },
+        _escapeHtml = function(value) {
+            return (value || '').replace(/[&<>"'\/]/g, function(s) {
+                return entityMap[s];
+            });
         };
 
     phoenix.render = {
-        register : _registerRender,
-        get : _registerRender
+        register: _registerRender, // function(context, name, handler)
+        get: _getRender // function(context, name)
     };
 
     phoenix.utils = {
         allocUuid: uuid,
-        allocID: allocID
+        allocID: allocID,
+        escapeHtml: _escapeHtml //function(value)
     };
     phoenix.drag = {
         setData: _setDragData,
@@ -136,11 +162,18 @@ var Phoenix = (function(local) {
         before: _before,
         append: _append,
         remove: _remove,
-        detach: _detach
+        detach: _detach,
+        text: _text // function(node, text)
+
     };
     phoenix.ajax = {
         get: _get
     };
+
+    phoenix.styles = {
+        parse: _parseStyle //function(style, css) {
+    };
+
     return phoenix;
 })(this);
 

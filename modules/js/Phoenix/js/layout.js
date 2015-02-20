@@ -85,15 +85,7 @@
             return true;
         },
         _addStdThemes = function(layout, css) {
-            if (layout.$style) {
-                var a = layout.$style.split(" ");
-                a.forEach(function(e, index) {
-                    e = e.trim();
-                    if (e && (e.charAt(0) === "$"))
-                        e = 'bs-style-' + e.substring(1);
-                    css.push(e);
-                });
-            }
+            $l.styles.parse(layout.$style, css);
         },
         _css = function(layout, parent, options) {
             var css = [],
@@ -282,7 +274,7 @@
             html.push('>');
             html.push('<h4 class="panel-title"');
             html.push('>');
-            html.push(layout.$title);
+            html.push(utils.escapeHtml(layout.$title));
             html.push('</h4></div>');
             layout.$idStep2 = layout.$id + "_s2";
             layout.$idDesign = layout.$idStep2;
@@ -426,18 +418,19 @@
                 onElement(layout, parent, true, false);
             }
         },
-        _nullHtmlFieldRender = function(html, item, layout, model, locale, utils, design) {
-            html.push('<div class="field' + (design ? ' design' : '') + (item.$config ? ' widget"' : '"') + (item.selected ? ' selected"' : '"'));
-            if (design) html.push(' draggable="true"')
+        _nullHtmlFieldRender = function(html, item, layout, model, options) {
+            html.push('<div class="bs-island' + (options.design ? ' design' : '') + (item.$config ? ' bs-widget' : ' bs-field') + (item.selected ? ' selected"' : '"'));
+            if (options.design) html.push(' draggable="true"')
             html.push(' data-render="' + item.$id + '"');
             html.push(' id="' + item.$id + '"');
             html.push('></div>')
         },
+        _nullWidgetRender = function(html, item, layout, model, options) {
+            html.push('<div id="' + item.$id + '"></div>');
+        },
         _renderLayout = function(layout, model, html, locale, utils, options) {
-            var htmlFieldRender = _nullHtmlFieldRender;
-            if (!options.design) {
-
-            }
+            var wHtmlFieldRender = $l.render.get(options.context, "widget") || _nullWidgetRender;
+            var fHtmlFieldRender = $l.render.get(options.context, "field") || _nullHtmlFieldRender;
             _enumElements(layout, null, function(item, parent, isLayout, before) {
                 if (isLayout) {
                     var rb = _blockBefore;
@@ -466,11 +459,10 @@
                         ra(html, item, parent, model, locale, utils, options.design);
                     }
                 } else {
-                    if (htmlFieldRender) {
-                        htmlFieldRender(html, item, parent, model, locale, utils, options.design);
-
-                    }
-
+                    if (item.$config)
+                        wHtmlFieldRender(html, item, parent, model, options);
+                    else
+                        fHtmlFieldRender(html, item, parent, model, options);
                 }
             }, true);
         },
@@ -553,11 +545,12 @@
     };
 
     _l.utils.clearMaps = function(layout, map, mapFields) {
+            var fields = {};
             _enumElements(layout, null, function(item, parent, isLayout, before) {
                 if (before) {
                     if (isLayout)
                         delete map[item.$id];
-                    else
+                    else 
                         delete mapFields[item.$id];
                 }
             }, true);
