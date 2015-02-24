@@ -25,7 +25,7 @@ var Phoenix = (function(local) {
             var l = _eventListeners[evname];
             if (l) l.forEach(function(item) {
                 var hnd = item.listener ? item.handler.bind(item.listener) : item.handler;
-                hnd();
+                hnd(data);
             });
         },
         _regListener = function(eventName, handler, listener) {
@@ -119,7 +119,11 @@ var Phoenix = (function(local) {
                 });
             }
         },
-        _text =  function(node, text) { node.textContent = text; },
+        _text =  function(node, text) { 
+            if (text === undefined)
+                return node.textContent;
+            node.textContent = text; 
+        },
         entityMap = {
             "&": "&amp;",
             "<": "&lt;",
@@ -156,8 +160,8 @@ var Phoenix = (function(local) {
     };
     phoenix.dom = {
         find: _find,
-        addClass: _addClass,
-        removeClass: _removeClass,
+        addClass: _addClass, //function(element, className)
+        removeClass: _removeClass, //function(element, className)
         hasClass: _hasClass,
         before: _before,
         append: _append,

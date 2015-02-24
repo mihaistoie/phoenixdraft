@@ -2,13 +2,15 @@
 (function($l) {
 
     var ll = {
-        AuthoringMode: 'Authoring Mode',
-        SaveLayout: 'Save',
+    	design: {
+    		Save: "Save",
+    		Preview: "Preview",
+            AuthoringMode: "Authoring"
+    	},
         PanelTitle: 'Panel title',
         Html: '<p class="text-primary text-center">Block Html</p>'
     }
     $l.locale = $l.locale || {};
     $l.locale.layouts = $l.locale.layouts || ll;
-
     return $l;
 }(Phoenix));

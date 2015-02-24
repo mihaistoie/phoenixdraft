@@ -43,15 +43,16 @@
             $element.find('li[draggable="true"]').off('dragstart dragend');
         };
 
-    var _toolBox = function(data) {
+    var _toolBox = function(data, options) {
             this.$element = null;
             this.map = {};
+            this.options = options || {};
             l.utils.check(data, this.map);
             this.data = data;
+
         },
         _methods = {
             renderToolBox: function(data, parentData) {
-                var that = this;
                 return $(l.toHtml(data, parentData));
             },
             render: function($parent) {

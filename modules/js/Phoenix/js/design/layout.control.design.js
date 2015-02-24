@@ -47,7 +47,10 @@
             }
             if (onlySelf) {
                 items = data.$items;
-                if (items) data.$items = []
+                if (items) data.$items = [];
+                if (data.$type == "row") {
+                    data.$columns = items.length;
+                }
             }
             var o = $.extend(true, {}, data);
             if (restoreMap) {
@@ -56,12 +59,17 @@
                 delete o.fields;
                 delete o.map;
             }
-            if (onlySelf)
+            if (onlySelf) {
                 data.$items = items;
+                delete data.$columns;
+            }
 
             if (o.$type) {
                 l.utils.clearMeta(o, !onlySelf);
                 if (onlySelf) delete o.$items;
+            } else {
+                delete o.$parentId;
+                delete o.$idDrag;
             }
             return o;
         },
@@ -166,7 +174,7 @@
             if (placeHolder)
                 _dom.remove(placeHolder);
             placeHolder = document.createElement('div');
-            placeHolder.className = 'container-fluid no-x-padding drop-layouts-zone drop-fields-zone design drop-target' + (isField ? " bs-island bs-field" : "" ) + (isWidget ? " bs-island bs-widget" : "");
+            placeHolder.className = 'container-fluid no-x-padding drop-layouts-zone drop-fields-zone design drop-target' + (isField ? " bs-island bs-field" : "") + (isWidget ? " bs-island bs-widget" : "");
             return placeHolder;
         },
 
@@ -175,21 +183,6 @@
             crt.className = 'bs-drag-image';
             document.body.appendChild(crt);
             return crt;
-        },
-        _findSelected = function(maps) {
-            var j = maps.length;
-            while (j--) {
-                var map = maps[j];
-                var ids = Object.keys(map);
-                var i = ids.length;
-                while (i--) {
-                    var o = map[ids[i]];
-                    if (o.selected) {
-                        return o;
-                    }
-                }
-            }
-            return null;
         },
         _showSelected = function($element, layout) {
             if (!$element) return;
@@ -204,12 +197,15 @@
                 var p = _dom.find(element, data.$idDrag);
                 if (element != p) {
                     if (data.selected) {
-                        var r = $('<div class="bs-rt-button" data-remove="true"><span class="glyphicon glyphicon-remove-sign"></span></div>').get(0);
-                        var c = p.childNodes;
-                        if (c.length)
-                            _dom.before(c[0], r);
-                        else
-                            _dom.append(p, r);
+                        var old = p.querySelector('div[data-remove="true"]');
+                        if (!old) {
+                            var r = $('<div class="bs-rt-button" data-remove="true"><span class="glyphicon glyphicon-remove-sign"></span></div>').get(0);
+                            var c = p.childNodes;
+                            if (c.length)
+                                _dom.before(c[0], r);
+                            else
+                                _dom.append(p, r);
+                        }
                     } else {
                         var rmv = p.querySelector('div[data-remove="true"]');
                         if (rmv) _dom.remove(rmv);
@@ -217,9 +213,12 @@
                 }
             }
             if (notify) {
+                var cd = _cleanCopy(data, true);
+                if (cd) delete cd.$id;
                 $l.ipc.emit("SelectedChanged", {
                     type: data ? (data.$type ? "layout" : (data.$config ? "widget" : "field")) : null,
-                    data: _cleanCopy(data, true)
+                    id: data ? data.$id : null,
+                    data: cd
                 });
             }
         },
@@ -238,29 +237,6 @@
                 $element.find('div[draggable="true"]').off('dragstart');
                 $element.find('.drop-layouts-zone, .drop-fields-zone').add($element).off('dragover dragenter drop');
             }
-        },
-        _removeDesignModeEvents = function($check) {
-            $check.find('input[type="checkbox"]').off('click');
-
-        },
-        _setDesignModeEvents = function($check, layout, design) {
-            $check.find('input[type="checkbox"]').on('click', function(event) {
-                layout.setDesignMode(this.checked);
-            });
-
-        },
-        _updateCss = function(item, element, layout, design) {
-            var l1 = _dom.find(element, item.$id);
-            var l2 = (item.$id != item.$idStep2) ? _dom.find(element, item.$idStep2) : null;
-            l.utils.updateCssClass(l1, item, layout.getLayoutById(item.$parentId), {
-                design: design,
-                step: 1
-            });
-            if (l2)
-                l.utils.updateCssClass(l2, item, layout.getLayoutById(item.$parentId), {
-                    design: design,
-                    step: 2
-                });
         },
         _setEvents = function($element, layout, design) {
             if (design) {
@@ -324,7 +300,7 @@
                                 _setEvents($element, layout, design);
                                 //update css 
                                 toUpdate.forEach(function(item) {
-                                    _updateCss(item, root, layout, design);
+                                    layout._afterPropsChanged(item);
                                 });
                                 return;
                             } else {
@@ -461,179 +437,48 @@
             }
 
         },
-        _layout = function(data, options) {
-            //Layout
-            this.$element = null;
-            //Mode design
-            this.$check = null;
-            //Content = this.$check + this.$element;
-            this.$content = null;
-
-            this.options = options || {};
-            this.options.context = this.options.context || "javascript";
-            this.map = {};
-            this.mapFields = {};
-            data = data || {};
-            l.utils.check(data, null, this.map, this.mapFields);
-            this.data = data;
-            data.map = this.map;
-            data.fields = this.mapFields;
-            this.children = {};
-
-            $l.ipc.listen('onToolBoxDragend', function() {
-                if (this.$element) {
-                    this.$element.trigger('dragend');
-                }
-            }, this);
-        },
+        _layout = $l.ui.Layout,
         _methods = {
-            _renderLayout: function(layout) {
-                var that = this;
-                var $e = $(l.toHtml(layout, null, {
-                    design: that.options.design,
-                    context: that.options.context
-                }));
-                that._renderChildren($e);
-                return $e;
-            },
-            render: function($parent) {
-                var that = this;
-                if (that.$content) {
-                    if (that.$element) {
-                         that._clearChildren();
-                        _removeEvents(that.$element, that, true);
-                        if (that.options.beforeRemove)
-                            that.options.beforeRemove(that.$element);
-                        that.$element.remove();
-                        that.$element = null;
+            _setDesignListeners: function(layout) {
+                $l.ipc.listen('onToolBoxDragend', function() {
+                    if (this.$element) {
+                        this.$element.trigger('dragend');
                     }
-                    if (that.$check) {
-                        _removeDesignModeEvents(that.$check);
-                        that.$check.remove();
-                        that.$check = null;
+                }, this);
+                $l.ipc.listen('onUpdateSelected', function(data) {
+                    if (data.type == "layout") {
+                        this.updateLayout(data.id, data.data);
                     }
-                } else {
-                    that.$content = $('<div></div>');
-                }
-                if (that.options.showPreview && !that.$check) {
-                    that.$check = $(l.authModeHtml(that.options.design));
-                    that.$content.append(that.$check);
-                    _setDesignModeEvents(that.$check, that, that.options.design);
-                }
-                if (!that.$element) {
-                    that.$element = that._renderLayout(that.data);
-                    if (that.options.beforeAdd)
-                        that.options.beforeAdd(that.$element);
-                    that.$content.append(that.$element);
-                    _setEvents(that.$element, that, that.options.design);
-                    var o = _findSelected([that.map, that.mapFields]);
-                    if (that.options.design)
-                        _onSelectedChanged(that.$element.get(0), o, true);
-                }
-                if ($parent) {
-                    if (that.options.replaceParent)
-                        $parent.replaceWith(that.$content);
-                    else
-                        $parent.append(that.$content);
-                }
-                return that.$content;
-            },
-            _renderChildren: function($e) {
-                var that = this;
-                var e = $e.get(0);
-                var wc = $l.render.get(that.options.context, "widget.control");
-                var fc = $l.render.get(that.options.context, "field.control");
-                if (wc || fc) {
-                    Object.keys(that.mapFields).forEach(function(fn){
-                        var fd = that.mapFields[fn];
-                        var _constructor =  fd.$config ? wc : fc;
-                        if (_constructor) {
-                           var p = new _constructor(fd, {context: that.options.context, design: that.options.design, replaceParent: true});
-                           p.render($(_dom.find(e, fd.$id)));
-                           that.children[fn] = p;
-                        }
-                        
-                    });
-                }
-            },
-            _clearChildren: function() {
-                var that = this;
-                var children = that.children; 
-                that.children = {};
-                Object.keys(children).forEach(function(v) {
-                    children[v].destroy();
-                });
-            },
-            destroy: function() {
-                var that = this;
-                that._clearChildren();
-                if (that.$element) {
-                    _removeEvents(that.$element, that, that.options.design)
-                    that.$element = null;
-                }
-                if (that.$check) {
-                    _removeDesignModeEvents(that.$check);
-                    that.$check = null;
-                }
-                $l.ipc.unlisten(that);
+                }, this);
+                $l.ipc.listen('onAuthoringModeChanged', function(value) {
+                    this.setDesignMode(value);
+                },this);
 
+                $l.ipc.listen('onSaveLayout', function(value) {
+                    var o = _cleanCopy(this.data, false);
+                },this) 
+
+                    
             },
-            check: function(layout, parent) {
-                l.utils.check(layout, parent, this.map, this.mapFields);
+            _removeEvents: function() {
+                _removeEvents(this.$element, this, true);
+            },
+            _addEvents: function() {
+                _setEvents(this.$element, this, this.options.design);
+            },
+            _onSelectedChanged: function(element, data, notify) {
+                _onSelectedChanged(element, data, notify);
             },
             toString: function(layout) {
                 var o = _cleanCopy(layout || this.data, false);
                 return JSON.stringify(o, 2)
             },
-            removeChild: function(id) {
-                var that = this;
-                if (!id || !that.options.design) return;
-                var d = that.map[id] || that.mapFields[id];
-                if (!d) return;
-                var p = that.map[d.$parentId];
-                if (!p) return;
-                var i = p.$items.indexOf(d);
-                p.$items.splice(i, 1);
-                l.utils.clearMaps(d, this.map, this.mapFields);
-                l.utils.afterRemoveChild(p, this.map, this.mapFields);
-                that.render();
-
+            _showSelected: function($element, layout) {
+                _showSelected($element, layout);
             },
-            setDesignMode: function(value) {
-                var that = this;
-                if (that.options.design != value) {
-                    that.options.design = value;
-                    that.render();
-                }
-            },
-            select: function(id) {
-                var that = this;
-                var $e = that.$element;
-                if (!id || !that.options.design) return;
-                var o = _findSelected([that.map, that.mapFields]);
-                if (o) {
-                    o.selected = false;
-                    _showSelected($e, o);
-                    _onSelectedChanged($e.get(0), o, false);
-                    if (o.$id == id) {
-                        _onSelectedChanged($e.get(0), null, true);
-                        return;
-                    }
-                }
-                var d = (that.map[id] ? that.map[id] : that.mapFields[id]);
-                d.selected = true;
-                _showSelected($e, d);
-                _onSelectedChanged($e.get(0), d, true);
-            },
-            getLayoutById: function(id) {
-                if (!id) return null;
-                var that = this;
-                return that.map[id];
-            },
-            getFieldById: function(id) {
-                if (!id) return null;
-                var that = this;
-                return that.mapFields[id];
+            toString: function(layout) {
+                var o = _cleanCopy(layout || this.data, false);
+                return JSON.stringify(o, 2)
             }
         };
     $.extend(_layout.prototype, _methods);

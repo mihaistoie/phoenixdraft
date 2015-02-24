@@ -93,6 +93,8 @@
             switch (layout.$type) {
                 case "block":
                     css.push("container-fluid");
+                    if (options.design && layout.selected)
+                        css.push("selected");
                     canAddLayouts = _canAddLayouts(layout);
                     if (canAddLayouts) {
                         if (options.design || _noPadding(layout))
@@ -224,6 +226,12 @@
         _setLayoutCss = function(e, layout, parent, options) {
             var css = _css(layout, parent, options);
             e.className = css.join(' ');
+            if (layout.$type == "panel" && options.step == 1) {
+                var t = $l.dom.find(e, layout.$id + "_title");
+                if (t) $l.dom.text(t, layout.$title || "");
+            } else if (layout.$type == "html" && options.step == 1) {
+                e.innerHTML = layout.$html || '';
+            }
         },
 
         _addLayoutCss = function(html, layout, parent, options) {
@@ -259,7 +267,6 @@
                 }
             }
         },
-
         _panelBefore = function(html, layout, parent, model, locale, utils, design) {
             html.push('<div');
             if (design) html.push(' draggable="true"');
@@ -272,7 +279,7 @@
             html.push('>');
             html.push('<div class="panel-heading"');
             html.push('>');
-            html.push('<h4 class="panel-title"');
+            html.push('<h4 class="panel-title" id="' + layout.$id + '_title"');
             html.push('>');
             html.push(utils.escapeHtml(layout.$title));
             html.push('</h4></div>');
@@ -466,18 +473,6 @@
                 }
             }, true);
         },
-        _createAuthoringMode = function(design) {
-            var html = [
-                '<div class="checkbox">',
-                '    <label>',
-                '      <input type="checkbox"' + (design ? ' checked="true"' : '') + '>',
-                _locale.AuthoringMode,
-                '    </label>',
-                '</div>'
-            ];
-            return html.join('');
-
-        },
         _canDropChild = function(child, parent, parentLevel) {
             if (child.$type) {
                 /* child is layout */
@@ -545,33 +540,31 @@
     };
 
     _l.utils.clearMaps = function(layout, map, mapFields) {
-            var fields = {};
-            _enumElements(layout, null, function(item, parent, isLayout, before) {
-                if (before) {
-                    if (isLayout)
-                        delete map[item.$id];
-                    else 
-                        delete mapFields[item.$id];
-                }
-            }, true);
-        },
-        _l.utils.afterRemoveChild = function(layout, map, mapFields) {
-            if (layout.$type == "row") {
-                layout.$items.forEach(function(item) {
-                    item.$type = "column";
-                    delete item.$colSize;
-                });
-                var docheck = !layout.$items.length;
-                _checkRowChilds(layout);
-                layout.$items.forEach(function(item) {
-                    _l.utils.check(item, layout, map, mapFields);
-                });
+        var fields = {};
+        _enumElements(layout, null, function(item, parent, isLayout, before) {
+            if (before) {
+                if (isLayout)
+                    delete map[item.$id];
+                else
+                    delete mapFields[item.$id];
             }
-        };
+        }, true);
+    };
+    _l.utils.afterRemoveChild = function(layout, map, mapFields) {
+        if (layout.$type == "row") {
+            layout.$items.forEach(function(item) {
+                item.$type = "column";
+                delete item.$colSize;
+            });
+            _checkRowChilds(layout);
+            layout.$items.forEach(function(item) {
+                _l.utils.check(item, layout, map, mapFields);
+            });
+        }
+    };
     _l.utils.canDropChild = _canDropChild;
     _l.utils.canSelect = _canSelectLayout;
     _l.utils.updateCssClass = _setLayoutCss;
-    _l.authModeHtml = _createAuthoringMode;
     _l.toHtml = function(layout, model, options) {
         var html = [];
         _renderLayout(layout, model, html, $l.locale, $l.utils, options);

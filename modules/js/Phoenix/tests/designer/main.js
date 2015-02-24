@@ -29,16 +29,21 @@ $(function() {
 				{"$type": "item", "$title": "Widget Image", "data": {"$type": "widget", "data": {"$config": {"$title": "Image", "$type": "image"}}}},
 				{"$type": "item", "$title": "Widget GMaps", "data": {"$type": "widget", "data": {"$config": {"$title": "Gmaps", "$type": "gmaps"}}}},
 				{"$type": "item", "$title": "Widget Test", "data": {"$type": "widget", "data": {"$config": {"$title": "Test", "$type": "test"}}}}
-			]},
-			{"$type": "group", "$title": "Property Editor",  "$items": []}
+			]}
 		]
 	};
-				
+		
+	var pe  = new Phoenix.ui.PropertyEditor({design:true});
+	pe.render($('#eee'));
 
-	var cl = new Phoenix.ui.Layout(layout, {design:true, showPreview: true});
+	var cl = new Phoenix.ui.Layout(layout, {design:true});
 	cl.render($('#yyy'));
-	cl = new Phoenix.ui.ToolBox(tbData);
-	cl.render($('#zzz'));
+	var tb  = new Phoenix.ui.ToolBox(tbData);
+	tb.render($('#zzz'));
+
+	var tb  = new Phoenix.ui.AuthoringToolBar({design:true});
+	tb.render($('#nav'));
+
 	
 });
 

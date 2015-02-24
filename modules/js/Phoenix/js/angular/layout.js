@@ -10,7 +10,6 @@
         return {
             scope: {
                 model: '=',
-                preview: '=',
                 authoring: '='
             },
             bindToController: true,
@@ -21,7 +20,6 @@
             link: function(scope, element, attrs) {
                 var model = scope.layout.model || {};
                 scope.component = new $p.ui.Layout(model, {
-                    showPreview: scope.layout.preview,
                     design: scope.layout.authoring,
                     replaceParent: true,
                     context: "angular",

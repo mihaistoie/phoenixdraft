@@ -13,13 +13,19 @@ module.exports = function(grunt) {
                     'js/core.js',
                     'js/locale.js',
                     'js/layout.js',
-                    'js/layout.component.js',
-                    'js/toolbox.js',
-                    'js/toolbox.component.js',
+                    'js/layout.control.js',
                     'js/widget.js',
-                    'js/widget.component.js'
+                    'js/widget.control.js'
                 ],
                 dest: 'dist/js/<%= pkg.name %>.js'
+            },
+            phoenix_design: {
+                src: [
+                    'js/design/layout.control.design.js',
+                    'js/design/toolbox.js',
+                    'js/design/toolbox.control.js'
+                ],
+                dest: 'dist/js/<%= pkg.name %>.design.js'
             },
             phoenixangular: {
                 src: [
@@ -74,6 +80,10 @@ module.exports = function(grunt) {
             core: {
                 src: '<%= concat.phoenix.dest %>',
                 dest: 'dist/js/<%= pkg.name %>.min.js'
+            },
+            core_design: {
+                src: '<%= concat.phoenix_design.dest %>',
+                dest: 'dist/js/<%= pkg.name %>.design.min.js'
             },
             angular: {
                 src: '<%= concat.phoenixangular.dest %>',
@@ -131,6 +141,7 @@ module.exports = function(grunt) {
 
     });
 
+    
     grunt.loadNpmTasks('grunt-contrib-clean');
     grunt.loadNpmTasks('grunt-contrib-less');
     grunt.loadNpmTasks('grunt-contrib-copy');
