@@ -1,0 +1,15 @@
+{
+	"$type": "groups",
+	"$items": [
+		{"$type": "group", "$title": "Layouts", "$items": [
+			{"$type": "item", "$title": "Block", "data": {"$type": "layout", "data": {"$type": "block"}}},
+			{"$type": "item", "$title": "Row", "data": {"$type": "layout", "data": {"$type": "row", "$items":[{},{}]}}},
+			{"$type": "item", "$title": "Html", "data": {"$type": "layout", "data": {"$type": "html"}}}
+			]},
+		{"$type": "group", "$title": "Widgets",  "$items": [
+			{"$type": "item", "$title": "Image", "data": {"$type": "widget", "data": {"$config": {"$title": "Image", "$type": "image"}}}},
+			{"$type": "item", "$title": "Map", "data": {"$type": "widget", "data": {"$config": {"$title": "Gmaps", "$type": "gmaps"}}}},
+			{"$type": "item", "$title": "Test", "data": {"$type": "widget", "data": {"$config": {"$title": "Test", "$type": "test"}}}}
+		]}
+	]
+}
