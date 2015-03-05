@@ -1,14 +1,105 @@
 {
-		"$type": "block",
-		"$items": [
-			{"$items": [
-					{"$type": "block"}, 
-					{"$type":"row", "$items": [{}, {"$items":[{"$config":{"$title": "Widget title ", "$type": "test"}}]}]}
-				]
-			},
-			{"$type":"row", "$items": [{}, {}, {}]},
-			{"$type": "panel"}, 
-			{"$type": "block"}
-			
-		]
-	}
+	"name": "home",
+	"$items": [
+		{
+			"$type": "row",
+			"$items": [
+				{
+					"$items": [],
+					"$colSize": 12,
+					"selected": true
+				}
+			]
+		},
+		{
+			"$type": "row",
+			"$items": [
+				{
+					"$items": [
+						{
+							"$config": {
+								"$title": "Image",
+								"$type": "image",
+								"data": {}
+							}
+						}
+					],
+					"$colSize": 4
+				},
+				{
+					"$items": [
+						{
+							"$config": {
+								"$title": "Image",
+								"$type": "image",
+								"data": {}
+							},
+							"selected": false
+						}
+					],
+					"selected": false,
+					"$colSize": 4
+				},
+				{
+					"$items": [
+						{
+							"$config": {
+								"$title": "Image",
+								"$type": "image",
+								"data": {}
+							}
+						}
+					],
+					"$colSize": 4
+				}
+			],
+			"selected": false
+		},
+		{
+			"$type": "row",
+			"$items": [
+				{
+					"$items": [
+						{
+							"$config": {
+								"$title": "Gmaps",
+								"$type": "gmaps",
+								"data": {}
+							}
+						},
+						{
+							"$config": {
+								"$title": "Image",
+								"$type": "image",
+								"data": {}
+							}
+						},
+						{
+							"$config": {
+								"$title": "Gmaps",
+								"$type": "gmaps",
+								"data": {}
+							}
+						}
+					],
+					"$colSize": 6,
+					"selected": false
+				},
+				{
+					"$items": [
+						{
+							"$config": {
+								"$title": "Gmaps",
+								"$type": "gmaps",
+								"data": {}
+							}
+						}
+					],
+					"$colSize": 6,
+					"selected": false
+				}
+			]
+		}
+	],
+	"$type": "block"
+}

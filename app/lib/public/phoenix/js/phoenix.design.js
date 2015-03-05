@@ -37,7 +37,7 @@
         },
         _cleanCopy = function(data, onlySelf) {
             if (!data) return null;
-            var restoreMap, map, fields, items;
+            var restoreMap, map, fields, items, render;
             if (data.map) {
                 restoreMap = true;
                 map = data.map;
@@ -51,6 +51,8 @@
                 if (data.$type == "row") {
                     data.$columns = items.length;
                 }
+                render = data.$render;
+                data.$render = null;
             }
             var o = $.extend(true, {}, data);
             if (restoreMap) {
@@ -62,15 +64,11 @@
             if (onlySelf) {
                 data.$items = items;
                 delete data.$columns;
+                data.$render = render;
             }
 
-            if (o.$type) {
-                l.utils.clearMeta(o, !onlySelf);
-                if (onlySelf) delete o.$items;
-            } else {
-                delete o.$parentId;
-                delete o.$idDrag;
-            }
+            l.utils.clearMeta(o, !onlySelf);
+            if (onlySelf) delete o.$items;
             return o;
         },
         _createTopList = function(p, exclude, placeHolder) {
@@ -448,11 +446,21 @@
                 $l.ipc.listen('onUpdateSelected', function(data) {
                     if (data.type == "layout") {
                         this.updateLayout(data.id, data.data);
-                    }
+                    } else 
+                        this.updateField(data.id, data.data);
                 }, this);
                 $l.ipc.listen('onAuthoringModeChanged', function(value) {
-                    layout.setDesignMode(value);
+                    this.setDesignMode(value);
+                },this);
+
+                $l.ipc.listen('onSaveLayout', function() {
+                    if (this.saveHandler)  {
+                        var o = _cleanCopy(this.data, false);
+                        if (this.saveHandler) this.saveHandler(o);
+                    }
+
                 },this) 
+
                     
             },
             _removeEvents: function() {
@@ -463,10 +471,6 @@
             },
             _onSelectedChanged: function(element, data, notify) {
                 _onSelectedChanged(element, data, notify);
-            },
-            toString: function(layout) {
-                var o = _cleanCopy(layout || this.data, false);
-                return JSON.stringify(o, 2)
             },
             _showSelected: function($element, layout) {
                 _showSelected($element, layout);
@@ -480,6 +484,197 @@
     $l.ui = $l.ui || {};
     $l.ui.Layout = _layout;
 
+}(Phoenix, $));
+
+'use strict';
+(function($l, $) {
+    var _html = function(id, options) {
+            var html = [
+                '<form id="' + id + '" class="'+(options.design ? '': 'bs-none')+'">',
+                '    <div class="form-group">',
+                '        <textarea class="form-control" rows="3"  id="' + id + '_json"></textarea>',
+                '    </div>',
+                '    <button type="button" class="form-group btn btn-default pull-right" id="' + id + '_apply">Apply</button>',
+                '</form>',
+            ];
+            return html.join('');
+
+        },
+        _pe = function(options) {
+            this.$element = null;
+            this.$id = $l.utils.allocID();
+            this.options = options || {};
+            this.selected = null;
+            this._setListeners();
+        },
+        _methods = {
+            _removeEvents: function() {
+                $($l.dom.find(this.$element.get(0), this.$id + "_apply")).off('click');
+            },
+            _setEvents: function() {
+                var that = this;
+                $($l.dom.find(that.$element.get(0), that.$id + "_apply")).on('click', function(event) {
+                    if (that.selected && that.selected.id) {
+                        var v = $l.dom.find(that.$element.get(0), that.$id + "_json").value;
+                        try {
+                            that.selected.data = JSON.parse(v);
+                        } catch (ex) {
+                            alert(ex.message);
+                            return;
+                        }
+                        $l.ipc.emit('UpdateSelected', that.selected);
+                    }
+                });
+            },
+            _setListeners: function(layout) {
+                $l.ipc.listen('onSelectedChanged', function(data) {
+                    this.selected = data;
+                    if (this.$element)
+                        this._setJson(JSON.stringify(data.data, null, true));
+                }, this);
+                $l.ipc.listen('onAuthoringModeChanged', function(value) {
+                    this.setDesignMode(value);
+                },this);
+
+            },
+            _setJson: function(value) {
+                var e = $l.dom.find(this.$element.get(0), this.$id + "_json");
+                if (e) {
+                    e.value = value;
+                }
+            },
+            setDesignMode: function(value) {
+                var that = this;
+                this.options.design = value;
+                if (this.$element) {
+                    if (this.options.design)
+                        $l.dom.removeClass(this.$element.get(0), 'bs-none');
+                    else
+                        $l.dom.addClass(this.$element.get(0), 'bs-none');
+                }
+
+            },
+            _clearChildren: function() {
+            },
+            render: function($parent) {
+                var that = this;
+                if (!that.$element) {
+                    that.$element = $(_html(that.$id, that.options));
+                    that._setEvents();
+                    if (that.options.beforeAdd)
+                        that.options.beforeAdd(that.$element);
+                }
+                if ($parent) {
+                    if (that.options.replaceParent)
+                        $parent.replaceWith(that.$element);
+                    else
+                        $parent.append(that.$element);
+                }
+                return that.$element;
+            },
+            destroy: function() {
+                var that = this;
+                that._clearChildren();
+                if (that.$element) {
+                    that._removeEvents();
+                    that.$element = null;
+                }
+                $l.ipc.unlisten(that);
+            }
+        };
+    $.extend(_pe.prototype, _methods);
+    $l.ui = $l.ui || {};
+    $l.ui.PropertyEditor = _pe;
+}(Phoenix, $));
+
+'use strict';
+(function($l, $) {
+    var _html = function(id, options) {
+            var html = [
+                '<nav class="navbar navbar-default" id="' + id + '">',
+                '  <div class="container-fluid">',
+                '    <div class="navbar-header">',
+                '      <a class="navbar-brand" href="#">',
+                         $l.locale.layouts.design.AuthoringMode,
+                '      </a>',
+                '    </div>',
+                '    <div class="collapse navbar-collapse">',
+                '     <form class="navbar-form navbar-left" role="search">',
+                '       <button type="button" class="btn btn-default" id="' + id + '_save">',
+                '         <span class="glyphicon glyphicon-floppy-save" aria-hidden="false"></span> ',
+                          $l.locale.layouts.design.Save,
+                '       </button>',
+                '       <div class="checkbox">',
+                '         <label>',
+                '           <input type="checkbox" id="' + id + '_preview"'+ (options.design ? '': ' checked="true"') + '> ',
+                          $l.locale.layouts.design.Preview,
+                '          </label>',
+                '       </div>',
+                '       </form>',
+                '    </div>',
+                '  </div>',
+                '</nav>'
+            ];
+
+            return html.join('');
+
+        },
+        _atb = function(options) {
+            this.$element = null;
+            this.$id = $l.utils.allocID();
+            this.options = options || {};
+        },
+        _methods = {
+            _removeEvents: function() {
+                var that = this, e = that.$element.get(0);
+                $($l.dom.find(e, that.$id + "_save")).off('click');
+                $($l.dom.find(e, that.$id + "_preview")).off('click');
+
+            },
+            _setEvents: function() {
+                var that = this, e = that.$element.get(0);
+                $($l.dom.find(e, that.$id + "_save")).on('click', function(event) {
+                    $l.ipc.emit('SaveLayout');
+                    event.stopPropagation();
+                    event.preventDefault();
+                    return false;
+                });
+                $($l.dom.find(e, that.$id + "_preview")).on('click', function(event) {
+                    $l.ipc.emit('AuthoringModeChanged', !this.checked);
+                    event.stopPropagation();
+                });
+
+            },
+            _clearChildren: function() {},
+            render: function($parent) {
+                var that = this;
+                if (!that.$element) {
+                    that.$element = $(_html(that.$id, that.options));
+                    that._setEvents();
+                    if (that.options.beforeAdd)
+                        that.options.beforeAdd(that.$element);
+                }
+                if ($parent) {
+                    if (that.options.replaceParent)
+                        $parent.replaceWith(that.$element);
+                    else
+                        $parent.append(that.$element);
+                }
+                return that.$element;
+            },
+            destroy: function() {
+                var that = this;
+                that._clearChildren();
+                if (that.$element) {
+                    that._removeEvents();
+                    that.$element = null;
+                }
+                $l.ipc.unlisten(that);
+            }
+        };
+    $.extend(_atb.prototype, _methods);
+    $l.ui = $l.ui || {};
+    $l.ui.AuthoringToolBar = _atb;
 }(Phoenix, $));
 
 'use strict';
@@ -623,42 +818,73 @@
             $element.find('li[draggable="true"]').off('dragstart dragend');
         };
 
-    var _toolBox = function(data) {
+    var _toolBox = function(data, options) {
             this.$element = null;
             this.map = {};
+            this.options = options || {};
+            data = data || {};
+            data.$type = data.$type || "groups";
             l.utils.check(data, this.map);
             this.data = data;
+            this._setListeners();
+
         },
         _methods = {
             renderToolBox: function(data, parentData) {
-                var that = this;
                 return $(l.toHtml(data, parentData));
             },
             render: function($parent) {
                 var that = this;
                 if (!that.$element) {
-                    that.$element = that.renderToolBox(that.data);
-                    if ($parent)
-                        $parent.append(that.$element);
+                    that.$element = that.renderToolBox(that.data, null);
+                    that.setDesignMode(that.options.design);
                     _setEvents(that.$element, that);
                 }
+                if ($parent) {
+                    if (that.options.beforeAdd)
+                        that.options.beforeAdd(that.$element);
+                    if (that.options.replaceParent)
+                        $parent.replaceWith(that.$element);
+                    else
+                        $parent.append(that.$element);
+                }
+                return that.$element;
             },
-            _destroy: function() {
+            _clearChildren: function() {},
+            destroy: function() {
                 var that = this;
+                that._clearChildren();
                 if (that.$element) {
-                    _rmvEvents(that.$element, that);
+                    that._removeEvents();
                     that.$element = null;
                 }
+                $l.ipc.unlisten(that);
             },
             getItemById: function(id) {
                 if (!id) return null;
                 var that = this;
                 return that.map[id];
+            },
+            _setListeners: function() {
+                $l.ipc.listen('onAuthoringModeChanged', function(value) {
+                    this.setDesignMode(value);
+                },this);
+
+            },            
+            setDesignMode: function(value) {
+                var that = this;
+                that.options.design = value;
+                if (this.$element) {
+                    if (this.options.design)
+                        $l.dom.removeClass(this.$element.get(0), 'bs-none');
+                    else
+                        $l.dom.addClass(this.$element.get(0), 'bs-none');
+                }
+
             }
+
         };
     $.extend(_toolBox.prototype, _methods);
-
     $l.ui = $l.ui || {};
     $l.ui.ToolBox = _toolBox;
-
 }(Phoenix, $));

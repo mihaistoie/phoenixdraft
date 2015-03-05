@@ -38,7 +38,7 @@ $(function() {
 
 	var cl = new Phoenix.ui.Layout(layout, {design:true});
 	cl.render($('#yyy'));
-	var tb  = new Phoenix.ui.ToolBox(tbData);
+	var tb  = new Phoenix.ui.ToolBox(tbData,  {design:true});
 	tb.render($('#zzz'));
 
 	var tb  = new Phoenix.ui.AuthoringToolBar({design:true});

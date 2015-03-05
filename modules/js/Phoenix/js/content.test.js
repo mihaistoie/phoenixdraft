@@ -6,10 +6,9 @@
 		},
 		_methods = {
 			render: function($parent) {
-				this.data.$title= "Test widget ... ";
 				var that = this;
 				if (!that.$element) {
-					that.$element = $('<div>Test</div>');
+					that.$element = $('<div></div>');
 				}
 				if ($parent) {
 					if (that.options.beforeAdd)

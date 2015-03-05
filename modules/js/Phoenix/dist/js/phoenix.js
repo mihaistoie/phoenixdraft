@@ -84,8 +84,9 @@ var Phoenix = (function(local) {
         _before = function(child, element) {
             child.parentNode.insertBefore(element, child);
         },
+        _getPromise = function() { return local.Promise || local.ES6Promise.Promise;},
         _get = function(url, headers) {
-            var _promise = local.Promise || local.ES6Promise.Promise;
+            var _promise = _getPromise();
             return new _promise(function(resolve, reject) {
                 $.ajax({
                         url: url
@@ -98,6 +99,42 @@ var Phoenix = (function(local) {
                         });
                     });
             });
+        },
+        _put = function(url, data, headers) {
+            var _promise = _getPromise();
+            return new _promise(function(resolve, reject) {
+                $.ajax({
+                        type: 'PUT',
+                        contentType : 'application/json',
+                        url: url,
+                        data: JSON.stringify(data)
+                    })
+                    .done(function(data, textStatus, jqXHR) {
+                        resolve(data);
+                    }).fail(function(jqXHR, textStatus, errorThrown) {
+                        reject(errorThrown || {
+                            message: textStatus
+                        });
+                    });
+            });
+        },
+        _getScript = function(url) {
+            var _promise = _getPromise();
+            return new _promise(function(resolve, reject) {
+                $.ajax({
+                        url: url,
+                        dataType: "script",
+                        cache: true
+                    })
+                    .done(function(data, textStatus, jqXHR) {
+                        resolve(true);
+                    }).fail(function(jqXHR, textStatus, errorThrown) {
+                        reject(errorThrown || {
+                            message: textStatus
+                        });
+                    });
+            });
+
         },
         _renders = {},
         _registerRender = function(context, name, handler) {
@@ -119,10 +156,10 @@ var Phoenix = (function(local) {
                 });
             }
         },
-        _text =  function(node, text) { 
+        _text = function(node, text) {
             if (text === undefined)
                 return node.textContent;
-            node.textContent = text; 
+            node.textContent = text;
         },
         entityMap = {
             "&": "&amp;",
@@ -160,8 +197,8 @@ var Phoenix = (function(local) {
     };
     phoenix.dom = {
         find: _find,
-        addClass: _addClass,
-        removeClass: _removeClass,
+        addClass: _addClass, //function(element, className)
+        removeClass: _removeClass, //function(element, className)
         hasClass: _hasClass,
         before: _before,
         append: _append,
@@ -171,7 +208,10 @@ var Phoenix = (function(local) {
 
     };
     phoenix.ajax = {
-        get: _get
+        get: _get,
+        getScript: _getScript,//function(url) {
+        put: _put//function(url, data) {
+
     };
 
     phoenix.styles = {
@@ -187,14 +227,16 @@ this.Phoenix = Phoenix
 (function($l) {
 
     var ll = {
-        AuthoringMode: 'Authoring Mode',
-        SaveLayout: 'Save',
+    	design: {
+    		Save: "Save",
+    		Preview: "Preview",
+            AuthoringMode: "Authoring"
+    	},
         PanelTitle: 'Panel title',
         Html: '<p class="text-primary text-center">Block Html</p>'
     }
     $l.locale = $l.locale || {};
     $l.locale.layouts = $l.locale.layouts || ll;
-
     return $l;
 }(Phoenix));
 
@@ -429,6 +471,8 @@ this.Phoenix = Phoenix
             if (layout.$type == "panel" && options.step == 1) {
                 var t = $l.dom.find(e, layout.$id + "_title");
                 if (t) $l.dom.text(t, layout.$title || "");
+            } else if (layout.$type == "html" && options.step == 1) {
+                e.innerHTML = layout.$html || '';
             }
         },
 
@@ -452,11 +496,13 @@ this.Phoenix = Phoenix
                 html.push('"');
             }
         },
-        _addLayoutId = function(html, step, layout) {
-            html.push(' data-layout="');
-            html.push(layout.$id);
-            html.push('"');
-            if (step > 1) {
+        _addLayoutId = function(html, step, layout, design) {
+            if (design) {
+                html.push(' data-layout="');
+                html.push(layout.$id);
+                html.push('"');
+            }
+            if (design && step > 1) {
                 var id = layout['$idStep' + step];
                 if (id) {
                     html.push(' id="');
@@ -465,7 +511,6 @@ this.Phoenix = Phoenix
                 }
             }
         },
-
         _panelBefore = function(html, layout, parent, model, locale, utils, design) {
             html.push('<div');
             if (design) html.push(' draggable="true"');
@@ -473,14 +518,13 @@ this.Phoenix = Phoenix
                 design: design,
                 step: 1
             });
-            _addLayoutId(html, 1, layout);
+            _addLayoutId(html, 1, layout, design);
             _addId(html, layout);
             html.push('>');
             html.push('<div class="panel-heading"');
             html.push('>');
             html.push('<h4 class="panel-title" id="' + layout.$id + '_title"');
             html.push('>');
-            console.log(layout.$title);
             html.push(utils.escapeHtml(layout.$title));
             html.push('</h4></div>');
             layout.$idStep2 = layout.$id + "_s2";
@@ -490,7 +534,7 @@ this.Phoenix = Phoenix
                 design: design,
                 step: 2
             });
-            _addLayoutId(html, 2, layout);
+            _addLayoutId(html, 2, layout, design);
             _addDataStep(html, 2, design);
             html.push('>');
 
@@ -511,7 +555,7 @@ this.Phoenix = Phoenix
                 design: design,
                 step: 1
             });
-            _addLayoutId(html, 1, layout);
+            _addLayoutId(html, 1, layout, design);
             _addId(html, layout);
             _addDataStep(html, 1, design);
             html.push('>');
@@ -526,7 +570,7 @@ this.Phoenix = Phoenix
                 design: design,
                 step: 1
             });
-            _addLayoutId(html, 1, layout);
+            _addLayoutId(html, 1, layout, design);
             _addId(html, layout);
             _addDataStep(html, 1, design);
             html.push('>');
@@ -543,7 +587,7 @@ this.Phoenix = Phoenix
                 design: design,
                 step: 1
             });
-            _addLayoutId(html, 1, layout);
+            _addLayoutId(html, 1, layout, design);
             _addId(html, layout);
             _addDataStep(html, 1, design);
             html.push('>');
@@ -559,7 +603,7 @@ this.Phoenix = Phoenix
                 step: 1
             });
             _addId(html, layout);
-            _addLayoutId(html, 1, layout);
+            _addLayoutId(html, 1, layout, design);
             _addDataStep(html, 1, design);
             html.push('>');
             layout.$idStep2 = layout.$id + "_s2";
@@ -568,7 +612,7 @@ this.Phoenix = Phoenix
                 design: design,
                 step: 2
             });
-            _addLayoutId(html, 2, layout);
+            _addLayoutId(html, 2, layout, design);
             _addDataStep(html, 2, design);
             html.push('>');
             _checkRowChilds(layout);
@@ -582,7 +626,7 @@ this.Phoenix = Phoenix
                 design: design,
                 step: 1
             });
-            _addLayoutId(html, 1, layout);
+            _addLayoutId(html, 1, layout, design);
             _addId(html, layout);
             _addDataStep(html, 1, design);
             html.push('>');
@@ -595,7 +639,7 @@ this.Phoenix = Phoenix
             layout.$idDesign = layout.$id + "_design";
             layout.$idDrag = layout.$idDesign;
             layout.$idStep2 = layout.$idDesign;
-            _addLayoutId(html, 2, layout);
+            _addLayoutId(html, 2, layout, design);
             _addDataStep(html, 2, design);
             html.push('>');
         },
@@ -673,18 +717,6 @@ this.Phoenix = Phoenix
                 }
             }, true);
         },
-        _createAuthoringMode = function(design) {
-            var html = [
-                '<div class="checkbox">',
-                '    <label>',
-                '      <input type="checkbox"' + (design ? ' checked="true"' : '') + '>',
-                _locale.AuthoringMode,
-                '    </label>',
-                '</div>'
-            ];
-            return html.join('');
-
-        },
         _canDropChild = function(child, parent, parentLevel) {
             if (child.$type) {
                 /* child is layout */
@@ -732,52 +764,59 @@ this.Phoenix = Phoenix
 
     _l.utils.clearMeta = function(layout, clearIds) {
         _enumElements(layout, null, function(item, parent, isLayout, before) {
-            if (isLayout && before) {
-                if (clearIds) delete item.$id;
-                delete item.$idDesign;
-                delete item.$idDrag;
-                delete item.$parentId;
-                delete item.$idStep2;
-                if (item.$type == 'column')
-                    delete item.$type;
-                else if (layout.$type == "panel") {
-                    if (layout.$title == _locale.PanelTitle)
-                        delete layout.$title;
-                } else if (layout.$type == "html") {
-                    if (layout.$html == _locale.Html)
-                        delete layout.$html;
+            if (before) {
+                if (isLayout) {
+                    if (clearIds) delete item.$id;
+                    delete item.$render;
+                    delete item.$idDesign;
+                    delete item.$idDrag;
+                    delete item.$parentId;
+                    delete item.$idStep2;
+                    if (item.$type == 'column')
+                        delete item.$type;
+                    else if (layout.$type == "panel") {
+                        if (layout.$title == _locale.PanelTitle)
+                            delete layout.$title;
+                    } else if (layout.$type == "html") {
+                        if (layout.$html == _locale.Html)
+                            delete layout.$html;
+                    }
+                } else {
+                    delete item.$render;
+                    if (clearIds) delete item.$id;
+                    delete item.$parentId;
+                    delete item.$idDrag;                    
                 }
             }
         }, true);
     };
 
     _l.utils.clearMaps = function(layout, map, mapFields) {
-            var fields = {};
-            _enumElements(layout, null, function(item, parent, isLayout, before) {
-                if (before) {
-                    if (isLayout)
-                        delete map[item.$id];
-                    else
-                        delete mapFields[item.$id];
-                }
-            }, true);
-        },
-        _l.utils.afterRemoveChild = function(layout, map, mapFields) {
-            if (layout.$type == "row") {
-                layout.$items.forEach(function(item) {
-                    item.$type = "column";
-                    delete item.$colSize;
-                });
-                _checkRowChilds(layout);
-                layout.$items.forEach(function(item) {
-                    _l.utils.check(item, layout, map, mapFields);
-                });
+        var fields = {};
+        _enumElements(layout, null, function(item, parent, isLayout, before) {
+            if (before) {
+                if (isLayout)
+                    delete map[item.$id];
+                else
+                    delete mapFields[item.$id];
             }
-        };
+        }, true);
+    };
+    _l.utils.afterRemoveChild = function(layout, map, mapFields) {
+        if (layout.$type == "row") {
+            layout.$items.forEach(function(item) {
+                item.$type = "column";
+                delete item.$colSize;
+            });
+            _checkRowChilds(layout);
+            layout.$items.forEach(function(item) {
+                _l.utils.check(item, layout, map, mapFields);
+            });
+        }
+    };
     _l.utils.canDropChild = _canDropChild;
     _l.utils.canSelect = _canSelectLayout;
     _l.utils.updateCssClass = _setLayoutCss;
-    _l.authModeHtml = _createAuthoringMode;
     _l.toHtml = function(layout, model, options) {
         var html = [];
         _renderLayout(layout, model, html, $l.locale, $l.utils, options);
@@ -908,13 +947,15 @@ this.Phoenix = Phoenix
             },
             destroy: function() {
                 var that = this;
+                $l.ipc.unlisten(that);
                 that._clearChildren();
                 if (that.$element) {
                     that._removeEvents();
                     that.$element = null;
                 }
-                $l.ipc.unlisten(that);
-
+                that.map = null;
+                that.mapFields = null;                
+                l.utils.clearMeta(that.data, false);
             },
             check: function(layout, parent) {
                 var that = this;
@@ -994,9 +1035,21 @@ this.Phoenix = Phoenix
                 that._showSelected($e, d);
                 that._onSelectedChanged($e.get(0), d, true);
             },
+            updateField: function(id, data) {
+                var that = this;
+                var dst = that.mapFields[id];
+                 if (!dst) return;
+                 if (dst.$render && dst.$config) {
+                    Object.keys(data.$config).forEach(function(pn) {
+                        if (pn == "data") return;
+                        if (dst.$render[pn] != data.$config[pn]) {
+                            dst.$render[pn] = data.$config[pn];
+                        }
+                    });
+                 }
+            },
             updateLayout: function(id, data) {
                 var that = this;
-
                 var dst = that.map[id];
                 var structChanged = false;
                 var propsChanged = false;
@@ -1026,7 +1079,6 @@ this.Phoenix = Phoenix
                     that.disableRules = true;
                     Object.keys(data).forEach(function(pn) {
                         if (data[pn] != dst[pn]) {
-                            console.log(pn);
                             dst[pn] = data[pn];
                             propsChanged = true;
 
@@ -1081,7 +1133,7 @@ this.Phoenix = Phoenix
 
         },
         _addTitle = function(html, id, data, options) {
-            html.push('<h4 class="bs-widget-title" id="' + id + '_title">');
+            html.push('<h4 class="bs-widget-title' + (data.$titleIsHidden?' bs-none':'')+ '" id="' + id + '_title">');
             html.push($l.utils.escapeHtml(data.$title));
             html.push('</h4>');
         },
@@ -1110,6 +1162,7 @@ this.Phoenix = Phoenix
 			this.data = data.$config || {};
 			data.$config.data =  data.$config.data  || {};
 			this.props = {};
+			this.item.$render = this.props;
 			this.props.data = data.$config.data;
 			this.options = options || {};
 			this.contentRender = null;
@@ -1130,12 +1183,13 @@ this.Phoenix = Phoenix
 					},
 					enumerable: true
 
-				});''
+				});
 			},
 			_defineProps: function() {
 				var self = this;
 				self._dp("$title");
 				self._dp("$border");
+				self._dp("$titleIsHidden");
 			},
 			_notifyChange: function(propertyName) {
 				var self = this;
@@ -1188,6 +1242,7 @@ this.Phoenix = Phoenix
 					that.contentRender.destroy();
 					that.contentRender = null;
 				}
+				this.item.$render = null;
 				that.$element = null;
 			}
 		};

@@ -37,19 +37,20 @@
         },
         _methods = {
             _removeEvents: function() {
-                $($l.dom.find(this.$element.get(0), this.$id + "_save")).off('click');
-                $($l.dom.find(that.$element.get(0), that.$id + "_preview")).off('click');
+                var that = this, e = that.$element.get(0);
+                $($l.dom.find(e, that.$id + "_save")).off('click');
+                $($l.dom.find(e, that.$id + "_preview")).off('click');
 
             },
             _setEvents: function() {
-                var that = this;
-                $($l.dom.find(that.$element.get(0), that.$id + "_save")).on('click', function(event) {
+                var that = this, e = that.$element.get(0);
+                $($l.dom.find(e, that.$id + "_save")).on('click', function(event) {
                     $l.ipc.emit('SaveLayout');
                     event.stopPropagation();
                     event.preventDefault();
                     return false;
                 });
-                $($l.dom.find(that.$element.get(0), that.$id + "_preview")).on('click', function(event) {
+                $($l.dom.find(e, that.$id + "_preview")).on('click', function(event) {
                     $l.ipc.emit('AuthoringModeChanged', !this.checked);
                     event.stopPropagation();
                 });

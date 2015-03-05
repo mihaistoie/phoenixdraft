@@ -2,7 +2,7 @@ var fs = require('fs');
 var path = require('path');
 
 function patchWritePath(filePath, user, done) {
-    if (user.isAdmin) {
+    if (!user || user.isAdmin) {
         return done(null, filePath);
     }
     filePath = path.join(filePath, user.name + '/');
@@ -30,7 +30,8 @@ function patchReadPath(filePath, fileName, user, done) {
                 return done(null, file);
             else
                 return done({
-                    message: "File not found."
+                    message: "File not found.",
+                    status: 404
                 }, null);
         });
     });

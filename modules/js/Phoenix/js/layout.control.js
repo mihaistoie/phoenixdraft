@@ -120,13 +120,15 @@
             },
             destroy: function() {
                 var that = this;
+                $l.ipc.unlisten(that);
                 that._clearChildren();
                 if (that.$element) {
                     that._removeEvents();
                     that.$element = null;
                 }
-                $l.ipc.unlisten(that);
-
+                that.map = null;
+                that.mapFields = null;                
+                l.utils.clearMeta(that.data, false);
             },
             check: function(layout, parent) {
                 var that = this;
@@ -206,9 +208,21 @@
                 that._showSelected($e, d);
                 that._onSelectedChanged($e.get(0), d, true);
             },
+            updateField: function(id, data) {
+                var that = this;
+                var dst = that.mapFields[id];
+                 if (!dst) return;
+                 if (dst.$render && dst.$config) {
+                    Object.keys(data.$config).forEach(function(pn) {
+                        if (pn == "data") return;
+                        if (dst.$render[pn] != data.$config[pn]) {
+                            dst.$render[pn] = data.$config[pn];
+                        }
+                    });
+                 }
+            },
             updateLayout: function(id, data) {
                 var that = this;
-
                 var dst = that.map[id];
                 var structChanged = false;
                 var propsChanged = false;
@@ -238,7 +252,6 @@
                     that.disableRules = true;
                     Object.keys(data).forEach(function(pn) {
                         if (data[pn] != dst[pn]) {
-                            console.log(pn);
                             dst[pn] = data[pn];
                             propsChanged = true;
 

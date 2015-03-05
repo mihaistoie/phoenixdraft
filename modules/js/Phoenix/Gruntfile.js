@@ -22,6 +22,8 @@ module.exports = function(grunt) {
             phoenix_design: {
                 src: [
                     'js/design/layout.control.design.js',
+                    'js/design/propeditor.control.js',
+                    'js/design/toolbar.authoring.control.js',
                     'js/design/toolbox.js',
                     'js/design/toolbox.control.js'
                 ],
@@ -31,7 +33,10 @@ module.exports = function(grunt) {
                 src: [
                     'js/angular/core.js',
                     'js/angular/layout.js',
-                    'js/angular/widget.js'
+                    'js/angular/widget.js',
+                    'js/angular/authoring-editor.js',
+                    'js/angular/authoring-toolbar.js',
+                    'js/angular/authoring-toolbox.js'
                 ],
                 dest: 'dist/js/<%= pkg.name %>.angular.js'
             },

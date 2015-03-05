@@ -67,7 +67,6 @@
 
             },
             _clearChildren: function() {
-
             },
             render: function($parent) {
                 var that = this;

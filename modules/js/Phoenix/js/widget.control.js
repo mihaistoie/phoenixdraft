@@ -6,6 +6,7 @@
 			this.data = data.$config || {};
 			data.$config.data =  data.$config.data  || {};
 			this.props = {};
+			this.item.$render = this.props;
 			this.props.data = data.$config.data;
 			this.options = options || {};
 			this.contentRender = null;
@@ -26,12 +27,13 @@
 					},
 					enumerable: true
 
-				});''
+				});
 			},
 			_defineProps: function() {
 				var self = this;
 				self._dp("$title");
 				self._dp("$border");
+				self._dp("$titleIsHidden");
 			},
 			_notifyChange: function(propertyName) {
 				var self = this;
@@ -84,6 +86,7 @@
 					that.contentRender.destroy();
 					that.contentRender = null;
 				}
+				this.item.$render = null;
 				that.$element = null;
 			}
 		};

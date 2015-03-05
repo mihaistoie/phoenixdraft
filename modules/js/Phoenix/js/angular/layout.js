@@ -2,15 +2,13 @@
 (function($p) {
     var app = angular.module("phoenix.ui");
     app.controller('uiLayoutController', ["$scope", function($scope) {
-        $scope.save = function() {
-
-        }
     }]);
     app.directive('layout', ['$compile', function($compile) {
         return {
             scope: {
                 model: '=',
-                authoring: '='
+                authoring: '=',
+                save: '&'
             },
             bindToController: true,
             restrict: 'E',
@@ -27,7 +25,10 @@
                         $compile(el)(scope);
                     }
                 });
-                scope.component.render(element)
+                scope.component.saveHandler = function(cd) {
+                    scope.layout.save({model: cd});
+                };
+                scope.component.render(element);
                 scope.$on("$destroy", function() {
                     scope.component.destroy()
                 });

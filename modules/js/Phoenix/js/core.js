@@ -84,8 +84,9 @@ var Phoenix = (function(local) {
         _before = function(child, element) {
             child.parentNode.insertBefore(element, child);
         },
+        _getPromise = function() { return local.Promise || local.ES6Promise.Promise;},
         _get = function(url, headers) {
-            var _promise = local.Promise || local.ES6Promise.Promise;
+            var _promise = _getPromise();
             return new _promise(function(resolve, reject) {
                 $.ajax({
                         url: url
@@ -98,6 +99,42 @@ var Phoenix = (function(local) {
                         });
                     });
             });
+        },
+        _put = function(url, data, headers) {
+            var _promise = _getPromise();
+            return new _promise(function(resolve, reject) {
+                $.ajax({
+                        type: 'PUT',
+                        contentType : 'application/json',
+                        url: url,
+                        data: JSON.stringify(data)
+                    })
+                    .done(function(data, textStatus, jqXHR) {
+                        resolve(data);
+                    }).fail(function(jqXHR, textStatus, errorThrown) {
+                        reject(errorThrown || {
+                            message: textStatus
+                        });
+                    });
+            });
+        },
+        _getScript = function(url) {
+            var _promise = _getPromise();
+            return new _promise(function(resolve, reject) {
+                $.ajax({
+                        url: url,
+                        dataType: "script",
+                        cache: true
+                    })
+                    .done(function(data, textStatus, jqXHR) {
+                        resolve(true);
+                    }).fail(function(jqXHR, textStatus, errorThrown) {
+                        reject(errorThrown || {
+                            message: textStatus
+                        });
+                    });
+            });
+
         },
         _renders = {},
         _registerRender = function(context, name, handler) {
@@ -119,10 +156,10 @@ var Phoenix = (function(local) {
                 });
             }
         },
-        _text =  function(node, text) { 
+        _text = function(node, text) {
             if (text === undefined)
                 return node.textContent;
-            node.textContent = text; 
+            node.textContent = text;
         },
         entityMap = {
             "&": "&amp;",
@@ -171,7 +208,10 @@ var Phoenix = (function(local) {
 
     };
     phoenix.ajax = {
-        get: _get
+        get: _get,
+        getScript: _getScript,//function(url) {
+        put: _put//function(url, data) {
+
     };
 
     phoenix.styles = {

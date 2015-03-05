@@ -254,11 +254,13 @@
                 html.push('"');
             }
         },
-        _addLayoutId = function(html, step, layout) {
-            html.push(' data-layout="');
-            html.push(layout.$id);
-            html.push('"');
-            if (step > 1) {
+        _addLayoutId = function(html, step, layout, design) {
+            if (design) {
+                html.push(' data-layout="');
+                html.push(layout.$id);
+                html.push('"');
+            }
+            if (design && step > 1) {
                 var id = layout['$idStep' + step];
                 if (id) {
                     html.push(' id="');
@@ -274,7 +276,7 @@
                 design: design,
                 step: 1
             });
-            _addLayoutId(html, 1, layout);
+            _addLayoutId(html, 1, layout, design);
             _addId(html, layout);
             html.push('>');
             html.push('<div class="panel-heading"');
@@ -290,7 +292,7 @@
                 design: design,
                 step: 2
             });
-            _addLayoutId(html, 2, layout);
+            _addLayoutId(html, 2, layout, design);
             _addDataStep(html, 2, design);
             html.push('>');
 
@@ -311,7 +313,7 @@
                 design: design,
                 step: 1
             });
-            _addLayoutId(html, 1, layout);
+            _addLayoutId(html, 1, layout, design);
             _addId(html, layout);
             _addDataStep(html, 1, design);
             html.push('>');
@@ -326,7 +328,7 @@
                 design: design,
                 step: 1
             });
-            _addLayoutId(html, 1, layout);
+            _addLayoutId(html, 1, layout, design);
             _addId(html, layout);
             _addDataStep(html, 1, design);
             html.push('>');
@@ -343,7 +345,7 @@
                 design: design,
                 step: 1
             });
-            _addLayoutId(html, 1, layout);
+            _addLayoutId(html, 1, layout, design);
             _addId(html, layout);
             _addDataStep(html, 1, design);
             html.push('>');
@@ -359,7 +361,7 @@
                 step: 1
             });
             _addId(html, layout);
-            _addLayoutId(html, 1, layout);
+            _addLayoutId(html, 1, layout, design);
             _addDataStep(html, 1, design);
             html.push('>');
             layout.$idStep2 = layout.$id + "_s2";
@@ -368,7 +370,7 @@
                 design: design,
                 step: 2
             });
-            _addLayoutId(html, 2, layout);
+            _addLayoutId(html, 2, layout, design);
             _addDataStep(html, 2, design);
             html.push('>');
             _checkRowChilds(layout);
@@ -382,7 +384,7 @@
                 design: design,
                 step: 1
             });
-            _addLayoutId(html, 1, layout);
+            _addLayoutId(html, 1, layout, design);
             _addId(html, layout);
             _addDataStep(html, 1, design);
             html.push('>');
@@ -395,7 +397,7 @@
             layout.$idDesign = layout.$id + "_design";
             layout.$idDrag = layout.$idDesign;
             layout.$idStep2 = layout.$idDesign;
-            _addLayoutId(html, 2, layout);
+            _addLayoutId(html, 2, layout, design);
             _addDataStep(html, 2, design);
             html.push('>');
         },
@@ -520,20 +522,28 @@
 
     _l.utils.clearMeta = function(layout, clearIds) {
         _enumElements(layout, null, function(item, parent, isLayout, before) {
-            if (isLayout && before) {
-                if (clearIds) delete item.$id;
-                delete item.$idDesign;
-                delete item.$idDrag;
-                delete item.$parentId;
-                delete item.$idStep2;
-                if (item.$type == 'column')
-                    delete item.$type;
-                else if (layout.$type == "panel") {
-                    if (layout.$title == _locale.PanelTitle)
-                        delete layout.$title;
-                } else if (layout.$type == "html") {
-                    if (layout.$html == _locale.Html)
-                        delete layout.$html;
+            if (before) {
+                if (isLayout) {
+                    if (clearIds) delete item.$id;
+                    delete item.$render;
+                    delete item.$idDesign;
+                    delete item.$idDrag;
+                    delete item.$parentId;
+                    delete item.$idStep2;
+                    if (item.$type == 'column')
+                        delete item.$type;
+                    else if (layout.$type == "panel") {
+                        if (layout.$title == _locale.PanelTitle)
+                            delete layout.$title;
+                    } else if (layout.$type == "html") {
+                        if (layout.$html == _locale.Html)
+                            delete layout.$html;
+                    }
+                } else {
+                    delete item.$render;
+                    if (clearIds) delete item.$id;
+                    delete item.$parentId;
+                    delete item.$idDrag;                    
                 }
             }
         }, true);

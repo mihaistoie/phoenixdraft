@@ -27,7 +27,7 @@
 
         },
         _addTitle = function(html, id, data, options) {
-            html.push('<h4 class="bs-widget-title" id="' + id + '_title">');
+            html.push('<h4 class="bs-widget-title' + (data.$titleIsHidden?' bs-none':'')+ '" id="' + id + '_title">');
             html.push($l.utils.escapeHtml(data.$title));
             html.push('</h4>');
         },

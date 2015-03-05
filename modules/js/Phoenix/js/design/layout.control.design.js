@@ -37,7 +37,7 @@
         },
         _cleanCopy = function(data, onlySelf) {
             if (!data) return null;
-            var restoreMap, map, fields, items;
+            var restoreMap, map, fields, items, render;
             if (data.map) {
                 restoreMap = true;
                 map = data.map;
@@ -51,6 +51,8 @@
                 if (data.$type == "row") {
                     data.$columns = items.length;
                 }
+                render = data.$render;
+                data.$render = null;
             }
             var o = $.extend(true, {}, data);
             if (restoreMap) {
@@ -62,15 +64,11 @@
             if (onlySelf) {
                 data.$items = items;
                 delete data.$columns;
+                data.$render = render;
             }
 
-            if (o.$type) {
-                l.utils.clearMeta(o, !onlySelf);
-                if (onlySelf) delete o.$items;
-            } else {
-                delete o.$parentId;
-                delete o.$idDrag;
-            }
+            l.utils.clearMeta(o, !onlySelf);
+            if (onlySelf) delete o.$items;
             return o;
         },
         _createTopList = function(p, exclude, placeHolder) {
@@ -448,14 +446,19 @@
                 $l.ipc.listen('onUpdateSelected', function(data) {
                     if (data.type == "layout") {
                         this.updateLayout(data.id, data.data);
-                    }
+                    } else 
+                        this.updateField(data.id, data.data);
                 }, this);
                 $l.ipc.listen('onAuthoringModeChanged', function(value) {
                     this.setDesignMode(value);
                 },this);
 
-                $l.ipc.listen('onSaveLayout', function(value) {
-                    var o = _cleanCopy(this.data, false);
+                $l.ipc.listen('onSaveLayout', function() {
+                    if (this.saveHandler)  {
+                        var o = _cleanCopy(this.data, false);
+                        if (this.saveHandler) this.saveHandler(o);
+                    }
+
                 },this) 
 
                     
@@ -468,10 +471,6 @@
             },
             _onSelectedChanged: function(element, data, notify) {
                 _onSelectedChanged(element, data, notify);
-            },
-            toString: function(layout) {
-                var o = _cleanCopy(layout || this.data, false);
-                return JSON.stringify(o, 2)
             },
             _showSelected: function($element, layout) {
                 _showSelected($element, layout);
